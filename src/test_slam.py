@@ -42,7 +42,9 @@ class GraphSLAM:
 
             if i > 0:
                 self.predict(i - 1, i, x)
-                self.optimize(i, i - 1, z, M, Omega)
+                self.optimize(i - 1, i, z, M, Omega)
+                # for j in range(1, i + 1):
+                #     self.optimize(j - 1, j, z, M, Omega)
             else:
                 self.X[N * i: N * (i + 1), :] = x
 
@@ -52,11 +54,11 @@ class GraphSLAM:
         self.X[N * j: N * (j + 1), :] = self.X[N * i: N * (i + 1), :] + x
 
     def optimize(self, i, j, z, M, Omega=np.zeros((N, N), dtype=float)):
-        for _ in range(5):
+        for _ in range(1):
             H, b = self.buildLinearSystem(i, j, z, M, Omega)
             delta_x = np.linalg.solve(H + np.eye(N * M), b)
             self.X += delta_x
-            print(self.X.T[: N * (j + 1)])
+            # print(self.X.T[: N * (j + 1)])
         self.H = H - np.eye(*H.shape)
         return self.X, self.H
 
@@ -83,11 +85,42 @@ class GraphSLAM:
 
 
 if __name__ == "__main__":
-    odo_stream = [[0, 0, 0], [0, 1.5, 0], [1.5, 1.5, 1]]
-    sen_stream = [[0, 0, 0], [0, 2, 0], [2, 2, np.pi / 4]]
-    p = np.array([[0, 0, 0], [0, 2, 0], [2, 4, np.pi / 4]])
-    x = GraphSLAM().run(odo_stream, sen_stream).reshape((3, -1))
+    n = 20
+    p = np.array([[0, 0, 0]])
+    for i in range(1, n):
+        dtheta = np.random.uniform(low=-np.pi/4, high=np.pi/4)
+        theta = p[i - 1][2] + dtheta
+        r = np.array([[np.cos(theta), -np.sin(theta)],
+                      [np.sin(theta), np.cos(theta)]])
+        x = p[i - 1, :2] + (r @ np.random.uniform(low=[[0], [0]],
+                                                  high=[[5], [0]])).reshape(1, 2)
+        x = np.append(x, [[theta]], axis=-1)
+        p = np.append(p, x, axis=0)
+    n = len(p)
+    u = 0.05
+    dp = np.zeros((0, 3))
+    for i, p_i in enumerate(p):
+        x = p_i
+        if i > 0:
+            x = x - p[i - 1]
+        dp = np.append(
+            dp, np.array([x]), axis=0)
+    dp = np.array(dp)
+    # print(dp)
 
-    plt.plot(p[:, 0], p[:, 1])
-    plt.plot(x[:, 0], x[:, 1])
+    odo_stream = dp + np.random.rand(n, 3) * u * 2
+    sen_stream = dp + np.random.rand(n, 3) * u / 2
+
+    q = np.cumsum(odo_stream, axis=0)
+    s = np.cumsum(sen_stream, axis=0)
+
+    # print(odo_stream)
+    print('start!')
+    x = GraphSLAM().run(odo_stream, sen_stream).reshape((-1, 3))
+    # print(x)
+
+    plt.plot(p[:, 0], p[:, 1], c='black')
+    plt.plot(q[:, 0], q[:, 1], c='b')
+    plt.plot(s[:, 0], s[:, 1], c='g')
+    plt.plot(x[:, 0], x[:, 1], c='r')
     plt.show()
