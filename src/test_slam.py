@@ -36,15 +36,13 @@ class GraphSLAM:
             x = np.array(odo, dtype=float).reshape(N, 1)
             z = np.array(sen, dtype=float).reshape(N, 1)
 
-            Omega = np.array([[1, 0, 0],
-                              [0, 1, 0],
-                              [0, 0, 1]]) * 0.1
+            Omega = np.linalg.inv(np.array([[1, 0.5, 0.5],
+                                            [0.5, 1, 0.5],
+                                            [0.5, 0.5, 1]]))
 
             if i > 0:
                 self.predict(i - 1, i, x)
                 self.optimize(i - 1, i, z, M, Omega)
-                # for j in range(1, i + 1):
-                #     self.optimize(j - 1, j, z, M, Omega)
             else:
                 self.X[N * i: N * (i + 1), :] = x
 
@@ -97,7 +95,7 @@ if __name__ == "__main__":
         x = np.append(x, [[theta]], axis=-1)
         p = np.append(p, x, axis=0)
     n = len(p)
-    u = 0.05
+    u = 0.1
     dp = np.zeros((0, 3))
     for i, p_i in enumerate(p):
         x = p_i
@@ -108,8 +106,10 @@ if __name__ == "__main__":
     dp = np.array(dp)
     # print(dp)
 
-    odo_stream = dp + np.random.rand(n, 3) * u * 2
-    sen_stream = dp + np.random.rand(n, 3) * u / 2
+    odo_stream = dp + (np.random.rand(n, 3) -
+                       np.array([[0.5] * 3] * n)) * u
+    sen_stream = dp + (np.random.rand(n, 3) -
+                       np.array([[0.5] * 3] * n)) * u / 2
 
     q = np.cumsum(odo_stream, axis=0)
     s = np.cumsum(sen_stream, axis=0)
