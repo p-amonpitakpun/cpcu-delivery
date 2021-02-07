@@ -163,3 +163,6 @@ class GraphSLAM:
               ] += B_ij.T @ (Omega @ B_ij)
 
         return X, H
+
+    def getImage(self):
+        return None
