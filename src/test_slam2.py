@@ -1,11 +1,22 @@
 import numpy as np
 
 from collections import defaultdict
+from sympy import Matrix, MatrixSymbol, lambdify
 
 
 POINT_DIM = 3
 POINT_SHAPE = (3)
+# X = [x, y, t]
 
+Xi = MatrixSymbol('Xi', 3, 1)
+Xj = MatrixSymbol('Xj', 3, 1)
+Z = MatrixSymbol('Z', 3, 1)
+Z_ = Xj - Xi
+z_ = lambdify((Xi, Xj), Matrix(Z_), modules='numpy')
+E = Matrix(Z - Z_)
+e = lambdify((Z, Xi, Xj), E, modules='numpy')
+A = lambdify((Z, Xi, Xj), E.jacobian(Xi), modules='numpy')
+B = lambdify((Z, Xi, Xj), E.jacobian(Xj), modules='numpy')
 
 class Vertex:
     def __init__(self, point, laser_scanner_data):
@@ -34,6 +45,7 @@ def mapping(vetices, edges, adjacency_list, transform, laser_scanner_data):
     # find a new vertex and edges
     new_vertex, new_edges = predict(
         vertices, edge, adjacency_list, transform)
+    new_vertex.laser_scanner_data = laser_scanner_data
 
     # append a new vertex and edges
     vertices.append(new_vertex)
@@ -45,8 +57,8 @@ def mapping(vetices, edges, adjacency_list, transform, laser_scanner_data):
     if V > 0:
 
         for egde in new_edges:
-            laser_scanner_data_i = vertices[edge.from_vertex_id]
-            laser_scanner_data_j = vertices[edges.to_vertex_id]
+            laser_scanner_data_i = vertices[edge.from_vertex_id].laser_scanner_data
+            laser_scanner_data_j = vertices[edges.to_vertex_id].laser_scanner_data
 
             # get z, info_matrix from the measurement
             z_ij, info_matrix_ij = get_measurement(
@@ -60,14 +72,21 @@ def mapping(vetices, edges, adjacency_list, transform, laser_scanner_data):
 
 
 def predict(V, E, Adj, t):
-    return None, []
+    if len(V) > 0:
+        vi = V[-1]
+        vj = next_point(vi.point, transform)
+        edge = Edge(vi, vj, vj.point - vi.point, None, None)
+        return vj, [edge]
+    else:
+        vj = np.zeros(POINT_SHAPE)
+        return vj, []
 
 
 def optimize(V, E):
 
     N = POINT_DIM
     Nv = len(V)
-    X = np.zeros((N * Nv, 1))
+    X = np.zeros((N * Nv, 1)) #TODO initialize state vector
 
     for _ in range(1):
 
@@ -84,7 +103,6 @@ def optimize(V, E):
             x_i = X[N * i: N * (i + 1)]
             x_j = X[N * j: N * (j + 1)]
 
-            z_ = edge.dx
             z = edge.z
             Omega = edge.info_matrix
 
@@ -100,19 +118,19 @@ def optimize(V, E):
             b[N * i: N * (i + 1), :] += A_ij.T @ Omega @ e_ij
             b[N * j: N * (j + 1), :] += B_ij.T @ Omega @ e_ij
 
+        # compute the Hessian in the original space
         H += np.eye(N * Nv)
 
         # Solve Linear System
         dx = np.linalg.solve(H, b))
         X += dx
 
-    # H=np.zeros((N * Nv, N * Nv), type = float)
+    H=np.zeros((N * Nv, N * Nv), type = float)
 
     for edge in E:
         i=edge.from_vertex_id
         j=edge.to_vertex_id
 
-        z_=edge.dx
         z=edge.z
         Omega=edge.info_matrix
 
