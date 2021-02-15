@@ -11,13 +11,19 @@ from cv_bridge import CvBridge
 from time import time_ns
 
 from modules.graph_slam import GraphSLAM
+from modules.icp.icp import icp
 
 
 odom_buffer = [0, 0, 0, 0, 0]
 odom_last_update = 0
+last_odom = None
 
 scanner_buffer = []
 scanner_last_update = 0
+
+graphSLAM = GraphSLAM()
+
+cv2.namedWindow('plot')
 
 
 def odom_callback(msg):
@@ -44,30 +50,52 @@ def scanner_callback(msg):
     scanner_last_update = now
 
 
+def process_data(odom_data, scanner_data):
+    global graphSLAM, last_odom
+
+    new_scan = np.array(scanner_data)[:, : 2]
+
+    dl = odom_data[3]
+    dr = odom_data[4]
+    c = 0.1
+    v_ = c * (dl + dr) / 2
+
+    transform = [0, 0, 0]
+    if last_odom is not None:
+        theta = odom_data[2]
+        dtheta = theta - last_odom[2]
+        
+        transform[0] = v_ * np.sin(theta)
+        transform[1] = v_ * np.cos(theta)
+        transform[2] = dtheta
+        
+
+    graphSLAM.mapping(transform, new_scan)
+
+    last_odom = odom_data
+
+
 def main():
     rospy.init_node('mapping', anonymous=True)
-
-    graph = GraphSLAM()
 
     odom_sub = rospy.Subscriber('odomData', Float32MultiArray, odom_callback)
     scanner_sub = rospy.Subscriber(
         'scannerData', Float32MultiArray, scanner_callback)
-
 
     print('running')
 
     last_update = 0
     odom_last_calculate = 0
     scan_last_calculate = 0
-    delay = 100e+3
+    delay = 1500e+6
 
     odom_data = None
     scanner_data = None
 
+    global graphSLAM
     global odom_buffer, odom_last_update
     global scanner_buffer, scanner_last_update
 
-    cv2.namedWindow('plot')
 
     while not rospy.is_shutdown():
         now = time_ns()
@@ -79,6 +107,9 @@ def main():
                 odom_data = odom_buffer.copy()
                 scanner_data = scanner_buffer.copy()
 
+                process_data(odom_data, scanner_data)
+                points = graphSLAM.getVertexPoints()
+
                 odom_buffer[3] = 0
                 odom_buffer[4] = 0
 
@@ -86,9 +117,11 @@ def main():
                 scan_last_calculate = now
                 last_update = now
 
+                print(len(points))
                 plot = np.zeros((500, 500, 3), dtype=np.uint8)
-                for point in scanner_data:
-                    plot = cv2.circle(plot, (int(point[0] * 200) + 250, 250 - int(point[1] * 200)), 1, (0, 0, 255))
+                for i, p in enumerate(points):
+                    plot = cv2.circle(plot, (int(p[0] * 100 + 250), int(p[1] * 100 + 250)), 2, (0, 0, 255))
+
                 cv2.imshow('plot', plot)
                 cv2.waitKey(1)
 

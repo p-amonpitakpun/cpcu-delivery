@@ -3,36 +3,37 @@ import numpy as np
 from collections import defaultdict
 from sympy import Matrix, MatrixSymbol, lambdify
 
+from .icp.icp import icp
+
 
 POINT_DIM = 3
 POINT_SHAPE = (3)
 
 
+Xi = MatrixSymbol('Xi', 3, 1)
+Xj = MatrixSymbol('Xj', 3, 1)
+Z = MatrixSymbol('Z', 3, 1)
+Z_ = Xj - Xi
+# z_ = lambdify((Xi, Xj), Matrix(Z_), modules='numpy')
+E = Matrix(Z - Z_)
+e = lambdify((Z, Xi, Xj), E, modules='numpy')
+A = lambdify((Z, Xi, Xj), E.jacobian(Xi), modules='numpy')
+B = lambdify((Z, Xi, Xj), E.jacobian(Xj), modules='numpy')
+
+
 class Vertex:
-    def __init__(self, point, laser_scanner_data):
+    def __init__(self, point, laser_scanner_data=None):
         self.point = point
         self.laser_scanner_data = laser_scanner_data
 
 
 class Edge:
-    def __init__(self, from_vertex_id, to_vertex_id, dx, z, info_matrix):
+    def __init__(self, from_vertex_id, to_vertex_id, dx, z=None, info_matrix=None):
         self.from_x = from_vertex_id
         self.to_x = to_vertex_id
         self.dx = dx
         self.z = z
         self.info_matrix = info_matrix
-
-        Xi = MatrixSymbol('Xi', 3, 1)
-        Xj = MatrixSymbol('Xj', 3, 1)
-        Z = MatrixSymbol('Z', 3, 1)
-        Z_ = Xj - Xi
-        z_ = lambdify((Xi, Xj), Matrix(Z_), modules='numpy')
-        E = Matrix(Z - Z_)
-        e = lambdify((Z, Xi, Xj), E, modules='numpy')
-        A = lambdify((Z, Xi, Xj), E.jacobian(Xi), modules='numpy')
-        B = lambdify((Z, Xi, Xj), E.jacobian(Xj), modules='numpy')
-
-        self.error_functions = e, A, B
 
 
 class GraphSLAM:
@@ -50,50 +51,77 @@ class GraphSLAM:
         new_vertex.laser_scanner_data = laser_scanner_data
 
         # append a new vertex and edges
-        vertices.append(new_vertex)
-        for edge in new_edges:
-            new_edge_id = len(self.edges)
-            self.edges[new_edge_id] = new_edge
-            self.adjacency_list[edge.from_vertex_id][edge.to_vertex_id] = new_edge_id
+        if V == 0 or not np.all(np.fabs(self.vertices[-1].point - new_vertex.point) < 0.05):
+            self.vertices.append(new_vertex)
+            for edge in new_edges:
+                new_edge_id = len(self.edges)
+                self.edges[new_edge_id] = edge
+                self.adjacency_list[edge.from_x][edge.to_x] = new_edge_id
 
-        if V > 0:
+            print('add new point at ', new_vertex.point)
 
-            for egde in new_edges:
-                laser_scanner_data_i = vertices[edge.from_vertex_id].laser_scanner_data
-                laser_scanner_data_j = vertices[edges.to_vertex_id].laser_scanner_data
-                transform = edge.dx
+            if V > 0:
 
-                # get z, info_matrix from the measurement
-                z_ij, info_matrix_ij = self.getMeasurement(
-                    laser_scanner_data_i, laser_scanner_data_j, transform)
+                for edge in new_edges:
+                    laser_scanner_data_i = self.vertices[edge.from_x].laser_scanner_data
+                    laser_scanner_data_j = self.vertices[edge.to_x].laser_scanner_data
+                    transform = edge.dx
 
-                # assign z, info_matrix to the edge
-                edge.z = z_ij
-                edge.info_matrix = info_matrix_ij
+                    # get z, info_matrix from the measurement
+                    z_ij, info_matrix_ij = self.getMeasurement(
+                        laser_scanner_data_i, laser_scanner_data_j, transform)
 
-            X, H = self.optimize(new_edges)
+                    # assign z, info_matrix to the edge
+                    edge.z = z_ij
+                    edge.info_matrix = info_matrix_ij
+
+                N = POINT_DIM
+                X, H = self.optimize(new_edges)
+                for i, v in enumerate(self.vertices):
+                    dx = X[N * i: N * (i + 1), :].reshape((3))
+                    v.point += dx
+                for e in new_edges:
+                    e.info_matrix = H[N * i: N * (i + 1), N * i: N * (i + 1)]
 
     def predict(self, transform):
         if len(self.vertices) > 0:
+            V = len(self.vertices)
             vi = self.vertices[-1]
-            vj = next_point(vi.point, transform)
-            edge = Edge(vi, vj, vj.point - vi.point, None, None)
+            vj = self.next_point(vi.point, transform)
+            edge = Edge(V - 1, V, vj.point - vi.point)
             return vj, [edge]
         else:
-            vj = np.zeros(POINT_SHAPE)
+            vj = Vertex(np.zeros(POINT_SHAPE))
             return vj, []
 
+    def next_point(self, point, transform):
+        return Vertex(point + np.array(transform))
+
     def getMeasurement(self, laser_scanner_data_i, laser_scanner_data_j, transform):
-        # TODO
-        z = None
-        omega = None
+        RT_hist, _ = icp(laser_scanner_data_i, laser_scanner_data_j)
+        R = np.eye(2)
+        T = np.zeros((2, 1))
+        for RT in RT_hist:
+            R_ = RT[:, : 2]
+            T_ = RT[:, 2:]
+            R = np.dot(R_, R)
+            T = np.dot(R_, T) + T_
+
+        dtheta = np.arctan2(R[0, 1], R[0, 0])
+        dx = T[0, 0]
+        dy = T[1, 0]
+
+        z = np.array([[dx], [dy], [dtheta]])
+        omega = np.linalg.inv(np.array([[1, 0.5, 0.5],
+                                        [0.5, 1, 0.5],
+                                        [0.5, 0.5, 1]]))
         return z, omega
 
     def optimize(self, edges):
 
         N = POINT_DIM
         Nv = len(self.vertices)
-        X = np.concatenate([vertex.point for vertex in self.vertices])
+        X = np.concatenate([vertex.point for vertex in self.vertices]).reshape((-1, 1))
         Nx = len(X)
 
         # loop until converge
@@ -101,13 +129,13 @@ class GraphSLAM:
 
             # Build Linear System
             # initilize matrices
-            H = np.zeros((Nx, Nx), type=float)
-            b = np.zeros((Nx, 1), type=float)
+            H = np.zeros((Nx, Nx), dtype=float)
+            b = np.zeros((Nx, 1), dtype=float)
 
             # compute H, b
             for edge in edges:
-                i = edge.from_vertex_id
-                j = edge.to_vertex_id
+                i = edge.from_x
+                j = edge.to_x
 
                 x_i = X[N * i: N * (i + 1)]
                 x_j = X[N * j: N * (j + 1)]
@@ -115,7 +143,7 @@ class GraphSLAM:
                 z = edge.z
                 Omega = edge.info_matrix
 
-                e, A, B = self.error_functions
+                global e, A, B
 
                 e_ij = e(z, x_i, x_j)
                 A_ij = A(z, x_i, x_j)
@@ -134,22 +162,21 @@ class GraphSLAM:
                 b[N * j: N * (j + 1), :] += B_ij.T @ Omega @ e_ij
 
             # compute the Hessian in the original space
-            H[: N, : N] += np.eye(N)
+            H += np.eye(Nx)
 
             # Solve Linear System
             dx = np.linalg.solve(H, b)
             X += dx
 
-        H = np.zeros((Nx, Nx), type=float)
+        H = np.zeros((Nx, Nx), dtype=float)
 
         for edge in edges:
-            i = edge.from_vertex_id
-            j = edge.to_vertex_id
+            i = edge.from_x
+            j = edge.to_x
 
             z = edge.z
             Omega = edge.info_matrix
 
-            e = E(z, x_i, x_j)
             A_ij = A(z, x_i, x_j)
             B_ij = B(z, x_i, x_j)
 
@@ -166,3 +193,9 @@ class GraphSLAM:
 
     def getImage(self):
         return None
+
+    def getVertexPoints(self):
+        points = []
+        for vertex in self.vertices:
+            points.append(vertex.point)
+        return points
