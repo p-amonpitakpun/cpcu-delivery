@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import cv2
-import message_filters
 import numpy as np
 import rospy
 
@@ -53,22 +52,21 @@ def scanner_callback(msg):
 def process_data(odom_data, scanner_data):
     global graphSLAM, last_odom
 
-    new_scan = np.array(scanner_data)[:, : 2]
+    new_scan = np.array(scanner_data)[:, 1: 3]
 
     dl = odom_data[3]
     dr = odom_data[4]
-    c = 0.1
+    c = 0.05
     v_ = c * (dl + dr) / 2
 
     transform = [0, 0, 0]
     if last_odom is not None:
         theta = odom_data[2]
         dtheta = theta - last_odom[2]
-        
+
         transform[0] = v_ * np.sin(theta)
         transform[1] = v_ * np.cos(theta)
         transform[2] = dtheta
-        
 
     graphSLAM.mapping(transform, new_scan)
 
@@ -87,7 +85,7 @@ def main():
     last_update = 0
     odom_last_calculate = 0
     scan_last_calculate = 0
-    delay = 1500e+6
+    delay = 100e+6
 
     odom_data = None
     scanner_data = None
@@ -96,7 +94,6 @@ def main():
     global odom_buffer, odom_last_update
     global scanner_buffer, scanner_last_update
 
-
     while not rospy.is_shutdown():
         now = time_ns()
         if now - last_update >= delay:
@@ -104,10 +101,8 @@ def main():
                 print('calculate', now - last_update,
                       odom_buffer, len(scanner_buffer))
 
-                odom_data = odom_buffer.copy()
-                scanner_data = scanner_buffer.copy()
 
-                process_data(odom_data, scanner_data)
+                process_data(odom_buffer, scanner_buffer)
                 points = graphSLAM.getVertexPoints()
 
                 odom_buffer[3] = 0
@@ -119,10 +114,26 @@ def main():
 
                 print(len(points))
                 plot = np.zeros((500, 500, 3), dtype=np.uint8)
+                scan = np.zeros((500, 500, 3), dtype=np.uint8)
+                scale = 25
                 for i, p in enumerate(points):
-                    plot = cv2.circle(plot, (int(p[0] * 100 + 250), int(p[1] * 100 + 250)), 2, (0, 0, 255))
+                    plot = cv2.circle(
+                        plot, (int(p[0] * scale + 250), int(250 - p[1] * scale)), 5, (255, 255, 255))
+                    if i > 0:
+                        plot = cv2.line(
+                            plot,
+                            (int(points[i - 1][0] * scale + 250),
+                             int(250 - points[i - 1][1] * scale)),
+                            (int(p[0] * scale + 250), int(250 - p[1] * scale )),
+                            (0, 0, 150),
+                            2
+                        )
+                for p in scanner_buffer:
+                    scan = cv2.circle(
+                        scan, (int(250 - p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
 
                 cv2.imshow('plot', plot)
+                cv2.imshow('scan', scan)
                 cv2.waitKey(1)
 
     rospy.spin()

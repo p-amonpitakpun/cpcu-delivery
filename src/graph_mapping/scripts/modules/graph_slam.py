@@ -78,8 +78,7 @@ class GraphSLAM:
                 N = POINT_DIM
                 X, H = self.optimize(new_edges)
                 for i, v in enumerate(self.vertices):
-                    dx = X[N * i: N * (i + 1), :].reshape((3))
-                    v.point += dx
+                    v.point = X[N * i: N * (i + 1), :].reshape((3))
                 for e in new_edges:
                     e.info_matrix = H[N * i: N * (i + 1), N * i: N * (i + 1)]
 
@@ -125,7 +124,7 @@ class GraphSLAM:
         Nx = len(X)
 
         # loop until converge
-        for _ in range(1):
+        for _ in range(2):
 
             # Build Linear System
             # initilize matrices
