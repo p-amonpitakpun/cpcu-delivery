@@ -20,9 +20,9 @@ if __name__ == '__main__':
         plot = bg.copy()
         text_color = (160, 160, 160)
         plot = cv2.putText(plot, 'ABS_Y {}'.format(
-            button_dict['ABS_Y'][0]), (200, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color)
+            button_dict['ABS_Y'][1]), (200, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color)
         plot = cv2.putText(plot, 'ABS_Y {}'.format(
-            button_dict['ABS_Y'][1]), (200, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color)
+            button_dict['ABS_Y'][0]), (200, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color)
         plot = cv2.putText(plot, 'ABS_X {}'.format(
             button_dict['ABS_X'][0]), (50, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color)
         plot = cv2.putText(plot, 'ABS_X {}'.format(
