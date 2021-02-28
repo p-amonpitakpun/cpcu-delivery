@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 
+import pprint
 import rospy
 
 from inputs import get_gamepad
 from std_msgs.msg import Int16MultiArray
 
+
+pp = pprint.PrettyPrinter(indent=4)
 
 key_map = {
     # 'ABS_X': 0,
@@ -21,13 +24,13 @@ def main():
     while not rospy.is_shutdown():
         events = get_gamepad()
         for event in events:
-            print(event.__dict__)
             if event.code in key_map.keys():
                 data = [key_map[event.code], int(event.state)]
                 msg = Int16MultiArray(data=data)
                 pub.publish(msg)
-                print(msg)
-                print()
+                pp.pprint(event.__dict__)
+                pp.pprint(msg)
+                print('\n')
 
 
 if __name__ == '__main__':
