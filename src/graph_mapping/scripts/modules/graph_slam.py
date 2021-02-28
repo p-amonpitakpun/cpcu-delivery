@@ -42,6 +42,15 @@ class GraphSLAM:
         self.edges = defaultdict(Edge)
         self.adjacency_list = defaultdict(lambda: defaultdict(int))
 
+    def getVertices(self):
+        return self.vertices
+
+    def getEdges(self):
+        return self.edges
+
+    def getAdjList(self):
+        return self.adjacency_list
+
     def mapping(self, transform, laser_scanner_data):
         V = len(self.vertices)
         E = len(self.edges)
@@ -51,14 +60,14 @@ class GraphSLAM:
         new_vertex.laser_scanner_data = laser_scanner_data
 
         # append a new vertex and edges
-        if V == 0 or not np.all(np.fabs(self.vertices[-1].point - new_vertex.point) < 0.05):
+        if V == 0 or not np.all(np.fabs(self.vertices[-1].point - new_vertex.point) < 0.01):
             self.vertices.append(new_vertex)
             for edge in new_edges:
                 new_edge_id = len(self.edges)
                 self.edges[new_edge_id] = edge
                 self.adjacency_list[edge.from_x][edge.to_x] = new_edge_id
 
-            print('add new point at ', new_vertex.point)
+            # print('add new point at ', new_vertex.point)
 
             if V > 0:
 
@@ -124,7 +133,7 @@ class GraphSLAM:
         Nx = len(X)
 
         # loop until converge
-        for _ in range(2):
+        for _ in range(1):
 
             # Build Linear System
             # initilize matrices
