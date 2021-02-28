@@ -1,3 +1,0 @@
-[submodule ".\\src\\graph_mapping\\scripts\\modules\\icp"]
-	path = .\\src\\graph_mapping\\scripts\\modules\\icp
-	url = https://github.com/richardos/icp
