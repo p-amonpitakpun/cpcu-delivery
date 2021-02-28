@@ -5,6 +5,7 @@ from sympy import Matrix, MatrixSymbol, lambdify
 
 from .icp.icp import icp
 
+OPTIMIZE = False
 
 POINT_DIM = 3
 POINT_SHAPE = (3)
@@ -84,12 +85,13 @@ class GraphSLAM:
                     edge.z = z_ij
                     edge.info_matrix = info_matrix_ij
 
-                N = POINT_DIM
-                X, H = self.optimize(new_edges)
-                for i, v in enumerate(self.vertices):
-                    v.point = X[N * i: N * (i + 1), :].reshape((3))
-                for e in new_edges:
-                    e.info_matrix = H[N * i: N * (i + 1), N * i: N * (i + 1)]
+                if OPTIMIZE:
+                    N = POINT_DIM
+                    X, H = self.optimize(new_edges)
+                    for i, v in enumerate(self.vertices):
+                        v.point = X[N * i: N * (i + 1), :].reshape((3))
+                    for e in new_edges:
+                        e.info_matrix = H[N * i: N * (i + 1), N * i: N * (i + 1)]
 
     def predict(self, transform):
         if len(self.vertices) > 0:
