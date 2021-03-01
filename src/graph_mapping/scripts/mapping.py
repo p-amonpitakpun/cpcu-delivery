@@ -1,37 +1,50 @@
 #!/usr/bin/env python3
 
 import cv2
+import glob
+import json
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import pprint
+import rospkg
 import rospy
+import sys
 
+from cv_bridge import CvBridge
+from datetime import datetime
 from std_msgs.msg import String, Float32MultiArray
 from sensor_msgs.msg import Image, LaserScan
-from cv_bridge import CvBridge
-from threading import Lock
-from time import time_ns
+from threading import Lock, Thread
 
 from modules.graph_slam import GraphSLAM
+from modules.log_processing import compute
 from modules.icp.icp import icp
 
 
 pp = pprint.PrettyPrinter(indent=4)
 mutex = Lock()
 
+PACKAGE_PATH = rospkg.RosPack().get_path('graph_mapping')
+LOG_PATH = '/logs/mapping_logs/'
+
 odom_buffer = [0, 0, 0, 0, 0]
 odom_msg_prev = [0, 0, 0, 0, 0]
-odom_last_update = 0
+odom_last_update = datetime.now()
 odom_init = False
 last_odom = None
 
 scanner_buffer = [0, 0, 0, 0]
-scanner_last_update = 0
+scanner_last_update = datetime.now()
 
-graphSLAM = GraphSLAM()
-
-odom_hist_l = []
-odom_hist_r = []
+delay_ms = 100
+mapping_log = {
+    'starttime': None,
+    'delay_ms': delay_ms,
+    'data': []
+}
+is_running = False
+last_update = None
 
 
 def odom_callback(msg):
@@ -41,7 +54,7 @@ def odom_callback(msg):
     odom_msg = list(msg.data)
 
     mutex.acquire()
-    now = time_ns()
+    now = datetime.now()
     # print('odom', msg.data[3: 5])
     if odom_init:
         odom_buffer[0: 2] = odom_msg[0: 2]
@@ -59,7 +72,7 @@ def scanner_callback(msg):
     global scanner_buffer, scanner_last_update
 
     mutex.acquire()
-    now = time_ns()
+    now = datetime.now()
     # print('scanner', len(msg.data), now)
     scanner_buffer = []
     n = len(msg.data)
@@ -71,145 +84,119 @@ def scanner_callback(msg):
     mutex.release()
 
 
-def process_data(odom_data, scanner_data):
-    global graphSLAM, last_odom, odom_hist_l, odom_hist_r
+def thread_function():
+    global is_running, delay_ms, mutex, last_update
+    global mapping_log
+    global odom_buffer, odom_last_update
+    global scanner_buffer, scanner_last_update
 
-    new_scan = np.array(scanner_data)[:, 1: 3]
+    odom_last_calculate = datetime.now()
+    scan_last_calculate = datetime.now()
 
-    dl = odom_data[3] #- (0.28 if odom_data[3] > 0 else 0)
-    dr = odom_data[4] #- (0.48 if odom_data[3] > 0 else 0)
+    print('  Thread: started')
 
-    odom_hist_l.append(dl)
-    odom_hist_r.append(dr)
+    mapping_log['starttime'] = datetime.timestamp(datetime.now())
 
-    c = 1E+2
-    v_ = c * (dl + dr) / 2
+    while not rospy.is_shutdown() and is_running:
+        try:
+            now = datetime.now()
+            if last_update is None or (now - last_update).total_seconds() * 1e+3 >= delay_ms:
+                if odom_last_update > odom_last_calculate and \
+                        scanner_last_update > scan_last_calculate:
 
-    transform = [0, 0, 0]
-    if last_odom is not None:
-        theta = odom_data[2]
-        dtheta = theta - last_odom[2]
+                    data = {
+                        'timestamp': datetime.timestamp(now),
+                        'odom': odom_buffer.copy(),
+                        'scanner': scanner_buffer.copy()
+                    }
+                    print('  Thread: append data ', data['timestamp'])
+                    mapping_log['data'].append(data)
 
-        # print(v_)
+                    mutex.acquire()
+                    odom_buffer[3] = 0
+                    odom_buffer[4] = 0
 
-        transform[0] = v_ * np.sin(theta)
-        transform[1] = v_ * np.cos(theta)
-        transform[2] = dtheta
+                    odom_last_calculate = now
+                    scan_last_calculate = now
+                    last_update = now
+                    mutex.release()
 
-    print('>>  transf\t', transform)
-    graphSLAM.mapping(transform, new_scan)
+                    scan = np.zeros((500, 500, 3), dtype=np.uint8)
+                    scale = 50
+                    scan = cv2.circle(scan, (250, 250), 5, (100, 250, 50), -1)
+                    for p in scanner_buffer:
+                        scan = cv2.circle(
+                            scan, (int(250 + p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
 
-    last_odom = odom_data.copy()
+                    cv2.imshow('scan', scan)
+                    cv2.waitKey(1)
+        except Exception as e:
+            print('  ERROR: ', e)
+    print('  Thread: stopped')
 
 
 def main():
-    rospy.init_node('mapping', anonymous=True)
+
+    global is_running, last_update
+    global mapping_log
+
+    rospy.init_node('Mapping', anonymous=True)
 
     odom_sub = rospy.Subscriber('odomData', Float32MultiArray, odom_callback)
     scanner_sub = rospy.Subscriber(
         'scannerData', Float32MultiArray, scanner_callback)
 
-    print('running')
+    thread = Thread(target=thread_function)
 
-    last_update = 0
-    odom_last_calculate = 0
-    scan_last_calculate = 0
-    delay = 500e+3
-
-    odom_data = None
-    scanner_data = None
-
-    global graphSLAM
-    global odom_buffer, odom_last_update
-    global scanner_buffer, scanner_last_update
-
-    start_time_ns = time_ns()
+    print('  Mapping')
+    print('  control:')
+    print('  - Q: start')
+    print('  - W: stop&save')
+    print('  - E: exit')
 
     while not rospy.is_shutdown():
-        now = time_ns()
-        if now - last_update >= delay:
-            if odom_last_update > odom_last_calculate and scanner_last_update > scan_last_calculate:
-                # print('calculate', now - last_update,
-                #       odom_buffer, len(scanner_buffer))
+        print('  time:', datetime.now())
+        print('  input: ', end='')
+        ans = input().strip().lower()
 
+        if ans == 'q':
+            is_running = True
+            thread.start()
 
-                print(odom_buffer[3: 5])
-                process_data(odom_buffer, scanner_buffer)
+        elif ans == 'w':
+            is_running = False
+            thread = Thread(target=thread_function)
+            filepath = PACKAGE_PATH + LOG_PATH + \
+                'mapping_log-{}.json'.format(mapping_log['starttime'])
+            with open(filepath, 'w') as fp:
+                json.dump(mapping_log, fp, indent=4)
+            print('  Mapping: saved at', filepath)
 
-                mutex.acquire()
-                odom_buffer[3] = 0
-                odom_buffer[4] = 0
+        elif ans == 'r':
+            logs = glob.glob(PACKAGE_PATH + LOG_PATH +
+                             'mapping_log/mapping_log-*.json')
+            print('  Mapping: compute from log')
+            for i, logpath in enumerate(logs):
+                print('  [{}]'.format(i), logpath)
+            ans2 = input('  answer: ').strip()
+            try:
+                i = int(ans2)
 
-                odom_last_calculate = now
-                scan_last_calculate = now
-                last_update = now
-                mutex.release()
+                if i < len(logs):
+                    log = None
+                    with open(logs[i], 'r') as fp:
+                        log = json.load(fp)
+                    graph = compute(log)
 
-                points = graphSLAM.getVertexPoints()
-                print('Vertices', len(points))
-                # for i, p in enumerate(points):
-                #     print(i, p)
+            except ValueError as e:
+                print('  Error: ', e)
 
-                edges = graphSLAM.getEdges()
-                print('Edges', len(edges))
-                # for e in edges.values():
-                #     # print(e)
-                #     print(e.from_x, e.to_x, e.dx, '\t',
-                #           e.z.T[0], '\t', e.z.T[0] / e.dx)
-
-                # print()
-
-                plot = np.zeros((500, 500, 3), dtype=np.uint8)
-                scan = np.zeros((500, 500, 3), dtype=np.uint8)
-                scale = 50
-                for i, p in enumerate(points):
-                    # plot = cv2.circle(
-                    #     plot, (int(p[0] * scale + 250), int(250 - p[1] * scale)), 3, (105, 105, 105))
-                    if i > 0:
-                        plot = cv2.line(
-                            plot,
-                            (int(points[i - 1][0] * scale + 250),
-                             int(250 - points[i - 1][1] * scale)),
-                            (int(p[0] * scale + 250), int(250 - p[1] * scale)),
-                            (0, 0, 150),
-                            2
-                        )
-                scan = cv2.circle(scan, (250, 250), 5, (100, 250, 50), -1)
-                for p in scanner_buffer:
-                    scan = cv2.circle(
-                        scan, (int(250 + p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
-
-                # cv2.imshow('plot', plot)
-                # cv2.imshow('scan', scan)
-                cv2.imshow('all', cv2.hconcat([plot, scan]))
-                cv2.waitKey(1)
-
-
-                if now - start_time_ns > 30E+9:
-                    global odom_hist_l, odom_hist_r
-                    odom_l = odom_hist_l
-                    odom_r = odom_hist_r
-                    # odom_x = [x for x in odom_hist_x if np.fabs(x) > 0.01]
-                    # odom_y = [y for y in odom_hist_y if np.fabs(y) > 0.01]
-
-                    # print(min(odom_l), '\t', max(odom_l))
-                    # print(min(odom_r), '\t', max(odom_r))
-
-                    # n_odom = min(len(odom_l), len(odom_r))
-                    # plt.plot(range(n_odom), odom_l[- n_odom: ], c='r')
-                    # plt.plot(range(n_odom), odom_r[- n_odom: ], c='cyan')
-                    # plt.show()
-
-                # scanarr = np.array(scanner_buffer)
-                # plt.scatter(scanarr[:, 2], scanarr[:, 1])
-                # plt.ylim(-2.5, 2.5)
-                # plt.xlim(-2.5, 2.5)
-                # plt.show()
+        elif ans == 'e':
+            sys.exit()
 
     rospy.spin()
     cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    print('started')
     main()
