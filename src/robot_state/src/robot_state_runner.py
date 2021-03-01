@@ -6,15 +6,16 @@ import queue
 import rospy
 import threading
 
-from sensor_msgs import Image
-from srv import Planning
+#from sensor_msgs import Image
+from robot_state.srv import Planning
 
 
 def planning_callback(command):
 
+    print('ROBOT_STATE: Call planning callback function')
     req = json.dumps(command)
 
-    rospy.wait_for_service(PLANNING_SRV)
+    # rospy.wait_for_service('planning')
 
     try:
         planning_req = rospy.ServiceProxy('planning', Planning)
@@ -45,7 +46,7 @@ def main():
 
     print('ROBOT STATE ')
 
-    rospy.init_node('robot_state', anonymous=True)
+    rospy.init_node('robot_state_runner', anonymous=True)
     # rospy.Subscriber(topic, type, callback)
 
     # RabbitMQ 

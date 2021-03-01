@@ -69,10 +69,10 @@ add_service_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  robot_state
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -161,7 +161,7 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
-  src/robot_state.py
+  src/robot_state_runner.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
