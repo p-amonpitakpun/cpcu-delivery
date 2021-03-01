@@ -33,4 +33,4 @@ def compute(log):
     for data in log['data']:
         last_odom = process_data(graph, data['odom'], data['scanner'], last_odom)
 
-    return None
+    return graph
