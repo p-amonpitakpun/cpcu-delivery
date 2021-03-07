@@ -5,13 +5,10 @@ import glob
 import json
 import matplotlib.pyplot as plt
 import numpy as np
-import os
-import pprint
 import rospkg
 import rospy
 import sys
 
-from cv_bridge import CvBridge
 from datetime import datetime
 from std_msgs.msg import String, Float32MultiArray
 from sensor_msgs.msg import Image, LaserScan
@@ -22,17 +19,18 @@ from modules.log_processing import compute
 from modules.icp.icp import icp
 
 
-pp = pprint.PrettyPrinter(indent=4)
 mutex = Lock()
 
 PACKAGE_PATH = rospkg.RosPack().get_path('graph_mapping')
-LOG_PATH = '/logs/mapping_logs/'
+LOG_PATH = '/logs/mapping_log/'
 
 odom_buffer = [0, 0, 0, 0, 0]
 odom_msg_prev = [0, 0, 0, 0, 0]
 odom_last_update = datetime.now()
 odom_init = False
-last_odom = None
+
+realpos_buffer = [-1, -1]
+got_realpos = False
 
 scanner_buffer = [0, 0, 0, 0]
 scanner_last_update = datetime.now()
@@ -43,6 +41,7 @@ mapping_log = {
     'delay_ms': delay_ms,
     'data': []
 }
+valid_data = []
 is_running = False
 last_update = None
 
@@ -50,6 +49,7 @@ last_update = None
 def odom_callback(msg):
     global mutex
     global odom_buffer, odom_init, odom_last_update, odom_msg_prev
+    global realpos_buffer, got_realpos
 
     odom_msg = list(msg.data)
 
@@ -66,6 +66,11 @@ def odom_callback(msg):
     odom_init = True
     odom_last_update = now
     mutex.release()
+
+    if len(odom_msg) > 5:
+        realpos_buffer[0] = odom_msg[5] / 100
+        realpos_buffer[1] = odom_msg[6] / 100
+        got_realpos = True
 
 
 def scanner_callback(msg):
@@ -89,6 +94,7 @@ def thread_function():
     global mapping_log
     global odom_buffer, odom_last_update
     global scanner_buffer, scanner_last_update
+    global validation
 
     odom_last_calculate = datetime.now()
     scan_last_calculate = datetime.now()
@@ -109,6 +115,7 @@ def thread_function():
                         'odom': odom_buffer.copy(),
                         'scanner': scanner_buffer.copy()
                     }
+                    valid_data.append(realpos_buffer)
                     print('  Thread: append data ', data['timestamp'])
                     mapping_log['data'].append(data)
 
@@ -139,8 +146,9 @@ def main():
 
     global is_running, last_update
     global mapping_log
+    global got_realpos, valid_data
 
-    rospy.init_node('Mapping', anonymous=True)
+    rospy.init_node('SLAM', anonymous=True)
 
     odom_sub = rospy.Subscriber('odomData', Float32MultiArray, odom_callback)
     scanner_sub = rospy.Subscriber(
@@ -165,17 +173,29 @@ def main():
 
         elif ans == 'w':
             is_running = False
-            thread = Thread(target=thread_function)
-            filepath = PACKAGE_PATH + LOG_PATH + \
-                'mapping_log-{}.json'.format(mapping_log['starttime'])
-            with open(filepath, 'w') as fp:
-                json.dump(mapping_log, fp, indent=4)
-            print('  Mapping: saved at', filepath)
+            thread.join()
+
+            res = None
+            while res != 'y' and res != 'n':
+                res = input('save ? (y/n) : ').strip().lower()
+
+                if res == 'y':
+
+                    if got_realpos:
+                        mapping_log['valid'] = valid_data
+
+                    filepath = PACKAGE_PATH + LOG_PATH + \
+                        'mapping_log-{}.json'.format(mapping_log['starttime'])
+                    with open(filepath, 'w') as fp:
+                        json.dump(mapping_log, fp, indent=4)
+                    print('  Mapping: saved at', filepath)
+
+            sys.exit()
 
         elif ans == 'r':
-            logs = glob.glob(PACKAGE_PATH + LOG_PATH +
-                             'mapping_log/mapping_log-*.json')
-            print('  Mapping: compute from log')
+            LOG_DIR = PACKAGE_PATH + LOG_PATH + '/mapping_log-*.json'
+            logs = glob.glob(LOG_DIR)
+            print('  Mapping: compute from log (found {})'.format(len(logs)))
             for i, logpath in enumerate(logs):
                 print('  [{}]'.format(i), logpath)
             ans2 = input('  answer: ').strip()
@@ -186,12 +206,31 @@ def main():
                     log = None
                     with open(logs[i], 'r') as fp:
                         log = json.load(fp)
-                    graph = compute(log)
+                    graph = compute(log, optimized=False)
+                    graph_optimized = compute(log, optimized=True)
+
+                for v in graph.getVertices():
+                    p = v.point
+                    plt.scatter(p[0], p[1], s=5, c='c')
+
+                for v in graph_optimized.getVertices():
+                    p = v.point
+                    plt.scatter(p[0], p[1], s=5, c='r')
+
+                try:
+                    for x, y in log['valid']:
+                        print(x, y)
+                        plt.scatter(x, y, s=20, c='k')
+                except:
+                    print('Mapping: cannot show validation')
+
+                plt.show()
 
             except ValueError as e:
                 print('  Error: ', e)
 
         elif ans == 'e':
+            is_running = False
             sys.exit()
 
     rospy.spin()

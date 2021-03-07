@@ -1,5 +1,7 @@
 import numpy as np
 
+from progressbar import ProgressBar
+
 from .graph_slam import GraphSLAM
 
 
@@ -10,7 +12,7 @@ def process_data(graphSLAM, odom_data, scanner_data, last_odom):
     dl = odom_data[3]
     dr = odom_data[4]
 
-    c = 1E+2
+    c = 50
     v_ = c * (dl + dr) / 2
 
     transform = [0, 0, 0]
@@ -24,13 +26,18 @@ def process_data(graphSLAM, odom_data, scanner_data, last_odom):
 
     graphSLAM.mapping(transform, new_scan)
 
-    return odom_data.copy()
+    return graphSLAM, odom_data.copy()
 
-def compute(log):
-    graph = GraphSLAM()
+
+def compute(log, optimized=True):
+    graph = GraphSLAM(optimized=optimized)
 
     last_odom = None
-    for data in log['data']:
-        last_odom = process_data(graph, data['odom'], data['scanner'], last_odom)
+    with ProgressBar(max_value=len(log['data'])) as bar:
+        for i, data in enumerate(log['data']):
+            # print('process', i, data['timestamp'])
+            graph, last_odom = process_data(
+                graph, data['odom'], data['scanner'], last_odom)
+            bar.update(i)
 
     return graph

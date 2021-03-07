@@ -5,7 +5,6 @@ from sympy import Matrix, MatrixSymbol, lambdify
 
 from .icp.icp import icp
 
-OPTIMIZE = False
 
 POINT_DIM = 3
 POINT_SHAPE = (3)
@@ -38,10 +37,12 @@ class Edge:
 
 
 class GraphSLAM:
-    def __init__(self):
+    def __init__(self, optimized=True):
         self.vertices = []
         self.edges = defaultdict(Edge)
         self.adjacency_list = defaultdict(lambda: defaultdict(int))
+
+        self.optimized = optimized
 
     def getVertices(self):
         return self.vertices
@@ -85,13 +86,21 @@ class GraphSLAM:
                     edge.z = z_ij
                     edge.info_matrix = info_matrix_ij
 
-                if OPTIMIZE:
+                if self.optimized:
                     N = POINT_DIM
                     X, H = self.optimize(new_edges)
                     for i, v in enumerate(self.vertices):
                         v.point = X[N * i: N * (i + 1), :].reshape((3))
                     for e in new_edges:
-                        e.info_matrix = H[N * i: N * (i + 1), N * i: N * (i + 1)]
+                        e.info_matrix = H[N * i: N *
+                                          (i + 1), N * i: N * (i + 1)]
+
+                # for edge in new_edges:
+                #     print('{} --> {}'.format(edge.from_x, edge.to_x))
+                #     print(edge.dx)
+                #     print(self.vertices[edge.from_x].point - self.vertices[edge.to_x].point)
+                #     print(edge.z.flatten())
+
 
     def predict(self, transform):
         if len(self.vertices) > 0:
@@ -117,21 +126,22 @@ class GraphSLAM:
             R = np.dot(R_, R)
             T = np.dot(R_, T) + T_
 
-        dtheta = np.arctan2(R[0, 1], R[0, 0])
+        dtheta = np.arctan2(- R[0, 1], R[0, 0])
         dx = T[0, 0]
         dy = T[1, 0]
 
         z = np.array([[dx], [dy], [dtheta]])
-        omega = np.linalg.inv(np.array([[1, 0.5, 0.5],
-                                        [0.5, 1, 0.5],
-                                        [0.5, 0.5, 1]]))
+        omega = np.linalg.inv(np.array([[2, 0.1, 0.1],
+                                        [0.1, 2, 0.1],
+                                        [0.1, 0.1, 2]]))
         return z, omega
 
     def optimize(self, edges):
 
         N = POINT_DIM
         Nv = len(self.vertices)
-        X = np.concatenate([vertex.point for vertex in self.vertices]).reshape((-1, 1))
+        X = np.concatenate(
+            [vertex.point for vertex in self.vertices]).reshape((-1, 1))
         Nx = len(X)
 
         # loop until converge
