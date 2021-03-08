@@ -8,6 +8,7 @@ import numpy as np
 import rospkg
 import rospy
 import sys
+import traceback
 
 from datetime import datetime
 from std_msgs.msg import String, Float32MultiArray
@@ -110,16 +111,17 @@ def thread_function():
                 if odom_last_update > odom_last_calculate and \
                         scanner_last_update > scan_last_calculate:
 
+                    mutex.acquire()
+                    print(realpos_buffer)
                     data = {
                         'timestamp': datetime.timestamp(now),
                         'odom': odom_buffer.copy(),
                         'scanner': scanner_buffer.copy()
                     }
-                    valid_data.append(realpos_buffer)
+                    valid_data.append(realpos_buffer.copy())
                     print('  Thread: append data ', data['timestamp'])
                     mapping_log['data'].append(data)
 
-                    mutex.acquire()
                     odom_buffer[3] = 0
                     odom_buffer[4] = 0
 
@@ -198,7 +200,11 @@ def main():
             print('  Mapping: compute from log (found {})'.format(len(logs)))
             for i, logpath in enumerate(logs):
                 print('  [{}]'.format(i), logpath)
-            ans2 = input('  answer: ').strip()
+
+            if len(logs) == 1:
+                ans2 = 0
+            else:
+                ans2 = input('  answer: ').strip()
             try:
                 i = int(ans2)
 
@@ -206,31 +212,38 @@ def main():
                     log = None
                     with open(logs[i], 'r') as fp:
                         log = json.load(fp)
-                    graph = compute(log, optimized=False)
-                    graph_optimized = compute(log, optimized=True)
+                    graph, gu = compute(log, optimized=False)
+                    # graph_optimized, go = compute(log, optimized=True)
 
-                for v in graph.getVertices():
-                    p = v.point
-                    plt.scatter(p[0], p[1], s=5, c='c')
+                # u_vertices = [v.point for v in graph.getVertices()]
+                # p = list(zip(*u_vertices))
+                # plt.scatter(p[0], p[1], s=1, c='c', label='unoptimized')
 
-                for v in graph_optimized.getVertices():
-                    p = v.point
-                    plt.scatter(p[0], p[1], s=5, c='r')
+                # o_vertices = [v.point for v in graph_optimized.getVertices()]
+                # q = list(zip(*o_vertices))
+                # plt.scatter(q[0], q[1], s=1, c='m', label='optimized')
 
-                try:
-                    for x, y in log['valid']:
-                        print(x, y)
-                        plt.scatter(x, y, s=20, c='k')
-                except:
-                    print('Mapping: cannot show validation')
+                # try:
+                #     r = list(zip(*log['valid']))
+                #     plt.scatter(r[0], r[1], s=1, c='k', label='validation')
+                # except:
+                #     print('  Mapping: cannot show validation')
 
-                plt.show()
+                cv2.imshow('grid', 255 - cv2.cvtColor(gu, cv2.COLOR_GRAY2RGB))
+                plt.legend()
+                plt.xlim(-3, 3)
+                plt.ylim(-3, 3)
+                # print(gu)
+                print('  close the plot to continue...')
+                # plt.show()
 
             except ValueError as e:
                 print('  Error: ', e)
+                traceback.print_exc()
 
         elif ans == 'e':
             is_running = False
+            cv2.destroyAllWindows()
             sys.exit()
 
     rospy.spin()

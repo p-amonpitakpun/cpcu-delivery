@@ -39,7 +39,7 @@ class Edge:
 class GraphSLAM:
     def __init__(self, optimized=True):
         self.vertices = []
-        self.edges = defaultdict(Edge)
+        self.edges = []
         self.adjacency_list = defaultdict(lambda: defaultdict(int))
 
         self.optimized = optimized
@@ -66,7 +66,7 @@ class GraphSLAM:
             self.vertices.append(new_vertex)
             for edge in new_edges:
                 new_edge_id = len(self.edges)
-                self.edges[new_edge_id] = edge
+                self.edges.append(edge)
                 self.adjacency_list[edge.from_x][edge.to_x] = new_edge_id
 
             # print('add new point at ', new_vertex.point)
@@ -126,7 +126,7 @@ class GraphSLAM:
             R = np.dot(R_, R)
             T = np.dot(R_, T) + T_
 
-        dtheta = np.arctan2(- R[0, 1], R[0, 0])
+        dtheta = np.arctan2(R[1, 0], R[0, 0])
         dx = T[0, 0]
         dy = T[1, 0]
 
