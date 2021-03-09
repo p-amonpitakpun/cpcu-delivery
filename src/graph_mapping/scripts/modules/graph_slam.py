@@ -145,7 +145,8 @@ class GraphSLAM:
         Nx = len(X)
 
         # loop until converge
-        for _ in range(1):
+        dx = None
+        while dx is None or (np.fabs(dx.flatten()) > np.inf).any():
 
             # Build Linear System
             # initilize matrices
@@ -193,6 +194,9 @@ class GraphSLAM:
         for edge in edges:
             i = edge.from_x
             j = edge.to_x
+
+            x_i = X[N * i: N * (i + 1)]
+            x_j = X[N * j: N * (j + 1)]
 
             z = edge.z
             Omega = edge.info_matrix
