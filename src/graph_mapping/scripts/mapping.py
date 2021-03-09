@@ -229,7 +229,7 @@ def main():
                 # except:
                 #     print('  Mapping: cannot show validation')
 
-                cv2.imshow('grid', 255 - cv2.cvtColor(gu, cv2.COLOR_GRAY2RGB))
+                cv2.imshow('grid', gu)
                 plt.legend()
                 plt.xlim(-3, 3)
                 plt.ylim(-3, 3)
