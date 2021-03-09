@@ -1,0 +1,14 @@
+# shared
+numpy
+opencv-python
+progressbar2
+
+# graph mapping
+sympy
+scikit-learn
+
+# joy_inputs
+inputs
+
+# robot_state
+pika
