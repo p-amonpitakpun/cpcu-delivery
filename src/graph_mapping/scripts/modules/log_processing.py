@@ -63,8 +63,7 @@ def create_OccupancyGrid(slam, name=''):
             P = v.laser_scanner_data
 
             for p in P:
-                p = p.reshape((2, 1))
-                p = np.dot(R.T, p) + T
+                p = np.dot(p, R) + T.T
                 p = p.reshape((2,))
                 occupancy_grid.updateOccupy(
                     (X[0] + offset, X[1] + offset), (p[0] + offset, p[1] + offset))
