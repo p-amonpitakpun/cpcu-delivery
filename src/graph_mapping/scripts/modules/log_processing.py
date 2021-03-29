@@ -4,10 +4,16 @@ import numpy as np
 from progressbar import ProgressBar
 
 from .graph_slam import GraphSLAM
+from .icp_slam import ICPSLAM
 from .occupancy_grid import OccupancyGrid
 
 
-def process_data(graphSLAM, odom_data, scanner_data, last_odom):
+SLAM = {
+    'graph': GraphSLAM,
+    'icp': ICPSLAM
+}
+
+def process_data(slam, odom_data, scanner_data, last_odom):
 
     new_scan = np.array(scanner_data)[:, 1: 3]
 
@@ -26,12 +32,12 @@ def process_data(graphSLAM, odom_data, scanner_data, last_odom):
         transform[0] = v_ * np.cos(theta)
         transform[2] = dtheta
 
-    graphSLAM.mapping(transform, new_scan)
+    slam.mapping(np.array(transform), new_scan)
 
-    return graphSLAM, odom_data.copy()
+    return slam, odom_data.copy()
 
 
-def create_OccupancyGrid(graphSLAM, name=''):
+def create_OccupancyGrid(slam, name=''):
     size = 500
     min_scanner = 4
     resolution = min_scanner * 2 / size
@@ -42,7 +48,7 @@ def create_OccupancyGrid(graphSLAM, name=''):
     occupancy_grid.max_treshold = 50
     offset = size / 2 * resolution
 
-    V = graphSLAM.getVertices()
+    V = slam.getVertices()
     with ProgressBar(max_value=len(V)) as bar:
         for i, v in enumerate(V):
 
@@ -87,20 +93,30 @@ def create_OccupancyGrid(graphSLAM, name=''):
     return grid
 
 
-def compute(log, optimized=True, name=''):
+def compute(log, slam_type='graph', optimized=True, name='', run_graph=True, progress=True):
 
     print('computing GraphSLAM...')
-    graph = GraphSLAM(optimized=optimized)
+    slam = SLAM[slam_type](optimized=optimized)
 
     last_odom = None
-    with ProgressBar(max_value=len(log['data'])) as bar:
+    if progress:
+        with ProgressBar(max_value=len(log['data'])) as bar:
+            for i, data in enumerate(log['data']):
+                # print('process', i, data['timestamp'])
+                slam, last_odom = process_data(
+                    slam, data['odom'], data['scanner'], last_odom)
+                bar.update(i)
+
+    else:
         for i, data in enumerate(log['data']):
-            # print('process', i, data['timestamp'])
-            graph, last_odom = process_data(
-                graph, data['odom'], data['scanner'], last_odom)
-            bar.update(i)
+            slam, last_odom = process_data(
+                slam, data['odom'], data['scanner'], last_odom)
 
-    print('creating Occupancy Grid...')
-    grid = create_OccupancyGrid(graph, name=name)
 
-    return graph, grid
+    if run_graph:
+        print('creating Occupancy Grid...')
+        grid = create_OccupancyGrid(slam, name=name)
+    else:
+        grid = None
+
+    return slam, grid
