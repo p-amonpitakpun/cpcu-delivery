@@ -3,7 +3,7 @@ import numpy as np
 from collections import defaultdict
 from sympy import Matrix, MatrixSymbol, lambdify
 
-from .icp.icp import icp
+from .icp import tr_icp
 
 
 POINT_DIM = 3
@@ -28,9 +28,10 @@ class Vertex:
 
 
 class Edge:
-    def __init__(self, from_vertex_id, to_vertex_id, z=None, info_matrix=None):
+    def __init__(self, from_vertex_id, to_vertex_id, transform=None, z=None, info_matrix=None):
         self.from_x = from_vertex_id
         self.to_x = to_vertex_id
+        self.transform = transform
         self.z = z
         self.info_matrix = info_matrix
 
@@ -89,14 +90,15 @@ class ICPSLAM:
                     edge.info_matrix = info_matrix_ij
 
                 if self.optimized:
-                    #TODO ICP optimization
+                    # TODO ICP optimization
+                    self.optimize(self.vertices, new_edges)
 
     def predict(self, transform):
         if len(self.vertices) > 0:
             V = len(self.vertices)
             vi = self.vertices[-1]
             vj = self.next_point(vi.point, transform)
-            edge = Edge(V - 1, V, vj.point - vi.point)
+            edge = Edge(V - 1, V, transform=vj.point - vi.point)
             return vj, [edge]
         else:
             vj = Vertex(np.zeros(POINT_SHAPE))
@@ -106,103 +108,37 @@ class ICPSLAM:
         return Vertex(point + transform)
 
     def getMeasurement(self, laser_scanner_data_i, laser_scanner_data_j, transform):
-        RT_hist, _ = icp(laser_scanner_data_i, laser_scanner_data_j)
-        R = np.eye(2)
-        T = np.zeros((2, 1))
-        for RT in RT_hist:
-            R_ = RT[:, : 2]
-            T_ = RT[:, 2:]
-            R = np.dot(R_, R)
-            T = np.dot(R_, T) + T_
+
+        P_i = laser_scanner_data_i.copy()
+        P_j = laser_scanner_data_j.copy()
+
+        # dx, dy, dtheta = transform
+
+        # R = np.array([[np.cos(dtheta), np.sin(dtheta)],
+        #                 [- np.sin(dtheta), np.cos(dtheta)]])
+        # T = np.array([[dx], [dy]])
+
+
+        # P_i = P_i @ R.T + T.T
+
+        R, T = tr_icp(P_i, P_j, N_iter=15)
 
         dtheta = np.arctan2(R[1, 0], R[0, 0])
-        dx = T[0, 0]
-        dy = T[1, 0]
+        dx = T[0]
+        dy = T[1]
 
-        z = np.array([[dx], [dy], [dtheta]])
-        omega = np.linalg.inv(np.array([[2, 0.1, 0.1],
-                                        [0.1, 2, 0.1],
-                                        [0.1, 0.1, 2]]))
-        return z, omega
+        z = np.array([dx, dy, dtheta])
+        # omega = np.linalg.inv(np.array([[2, 0.1, 0.1],
+        #                                 [0.1, 2, 0.1],
+        #                                 [0.1, 0.1, 2]]))
+        return z, None
 
-    def optimize(self, edges):
-
-        N = POINT_DIM
-        Nv = len(self.vertices)
-        X = np.concatenate(
-            [vertex.point for vertex in self.vertices]).reshape((-1, 1))
-        Nx = len(X)
-
-        # loop until converge
-        dx = None
-        while dx is None or (np.fabs(dx.flatten()) > np.inf).any():
-
-            # Build Linear System
-            # initilize matrices
-            H = np.zeros((Nx, Nx), dtype=float)
-            b = np.zeros((Nx, 1), dtype=float)
-
-            # compute H, b
-            for edge in edges:
-                i = edge.from_x
-                j = edge.to_x
-
-                x_i = X[N * i: N * (i + 1)]
-                x_j = X[N * j: N * (j + 1)]
-
-                z = edge.z
-                Omega = edge.info_matrix
-
-                global e, A, B
-
-                e_ij = e(z, x_i, x_j)
-                A_ij = A(z, x_i, x_j)
-                B_ij = B(z, x_i, x_j)
-
-                H[N * i: N * (i + 1), N * i: N * (i + 1)
-                  ] += A_ij.T @ (Omega @ A_ij)
-                H[N * i: N * (i + 1), N * j: N * (j + 1)
-                  ] += A_ij.T @ (Omega @ B_ij)
-                H[N * j: N * (j + 1), N * i: N * (i + 1)
-                  ] += B_ij.T @ (Omega @ A_ij)
-                H[N * j: N * (j + 1), N * j: N * (j + 1)
-                  ] += B_ij.T @ (Omega @ B_ij)
-
-                b[N * i: N * (i + 1), :] += A_ij.T @ Omega @ e_ij
-                b[N * j: N * (j + 1), :] += B_ij.T @ Omega @ e_ij
-
-            # compute the Hessian in the original space
-            H += np.eye(Nx)
-
-            # Solve Linear System
-            dx = np.linalg.solve(H, b)
-            X += dx
-
-        H = np.zeros((Nx, Nx), dtype=float)
-
+    def optimize(self, vertices, edges):
         for edge in edges:
-            i = edge.from_x
-            j = edge.to_x
+            v_i = vertices[edge.from_x]
+            v_j = vertices[edge.to_x]
 
-            x_i = X[N * i: N * (i + 1)]
-            x_j = X[N * j: N * (j + 1)]
-
-            z = edge.z
-            Omega = edge.info_matrix
-
-            A_ij = A(z, x_i, x_j)
-            B_ij = B(z, x_i, x_j)
-
-            H[N * i: N * (i + 1), N * i: N * (i + 1)
-              ] += A_ij.T @ (Omega @ A_ij)
-            H[N * i: N * (i + 1), N * j: N * (j + 1)
-              ] += A_ij.T @ (Omega @ B_ij)
-            H[N * j: N * (j + 1), N * i: N * (i + 1)
-              ] += B_ij.T @ (Omega @ A_ij)
-            H[N * j: N * (j + 1), N * j: N * (j + 1)
-              ] += B_ij.T @ (Omega @ B_ij)
-
-        return X, H
+            v_j.point = edge.z
 
     def getImage(self):
         return None

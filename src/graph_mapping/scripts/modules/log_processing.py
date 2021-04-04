@@ -89,7 +89,7 @@ def create_OccupancyGrid(slam, name=''):
     ).astype(np.uint8)
     grid = 255 - cv2.cvtColor(grid, cv2.COLOR_GRAY2RGB)
 
-    return grid
+    return grid, occupancy_grid
 
 
 def compute(log, slam_type='graph', optimized=True, name='', run_graph=True, progress=True):
@@ -114,8 +114,9 @@ def compute(log, slam_type='graph', optimized=True, name='', run_graph=True, pro
 
     if run_graph:
         print('creating Occupancy Grid...')
-        grid = create_OccupancyGrid(slam, name=name)
+        grid, occupancy_grid = create_OccupancyGrid(slam, name=name)
     else:
         grid = None
+        occupancy_grid = None
 
-    return slam, grid
+    return slam, occupancy_grid, grid

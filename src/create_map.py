@@ -38,7 +38,7 @@ def main():
                 with open(logs[i], 'r') as fp:
                     log = json.load(fp)
                 graph_name = 'map {}'.format(datetime.fromtimestamp(log['starttime']))
-                graph, g = compute(log, optimized=False, name=graph_name)
+                graph, grid, g = compute(log, slam_type='icp', optimized=True, name=graph_name)
                 # graph_optimized, g = compute(log, optimized=True)
 
             # u_vertices = [v.point for v in graph.getVertices()]
@@ -66,6 +66,7 @@ def main():
             # print(gu)
             # print('close the plot to continue...')
             # plt.show()
+            print(grid)
 
         except ValueError as e:
             print('Error: ', e)
