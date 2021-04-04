@@ -3,7 +3,7 @@ import numpy as np
 from collections import defaultdict
 from sympy import Matrix, MatrixSymbol, lambdify
 
-from .icp.icp import icp
+from .icp import icp
 
 
 POINT_DIM = 3
@@ -117,16 +117,21 @@ class GraphSLAM:
         return Vertex(point + np.array(transform))
 
     def getMeasurement(self, laser_scanner_data_i, laser_scanner_data_j, transform):
-        RT_hist, _ = icp(laser_scanner_data_i, laser_scanner_data_j)
-        R = np.eye(2)
-        T = np.zeros((2, 1))
-        for RT in RT_hist:
-            R_ = RT[:, : 2]
-            T_ = RT[:, 2:]
-            R = np.dot(R_, R)
-            T = np.dot(R_, T) + T_
 
-        dtheta = np.arctan2(R[1, 0], R[0, 0])
+        dx_0, dy_0, dtheta_0 = transform
+
+        R_0 = np.array([[np.cos(dtheta_0), np.sin(dtheta_0)],
+                        [- np.sin(dtheta_0), np.cos(dtheta_0)]])
+        T_0 = np.array([[dx_0], [dy_0]])
+
+        Q = laser_scanner_data_j @ R_0.T + T_0.T
+
+        R, T = icp(laser_scanner_data_i, Q, N_iter=5)
+
+        R = np.dot(R.T, R_0)
+        T = np.dot(R.T, T_0) + T.reshape((2, 1))
+
+        dtheta = np.arctan2(R[0, 1], R[0, 0])
         dx = T[0, 0]
         dy = T[1, 0]
 
