@@ -56,6 +56,3 @@ CATKIN_IGNORE
 
 # project directories
 images/
-
-# scratch files
-*scratches_*
