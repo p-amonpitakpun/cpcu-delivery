@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import cv2
 import glob
@@ -14,9 +14,13 @@ from std_msgs.msg import String, Float32MultiArray
 from sensor_msgs.msg import Image, LaserScan
 from threading import Lock, Thread
 
-from modules.icp import icp
+# from modules.icp import icp
 from modules.PF import ParticleFilter
 
+
+PACKAGE_PATH = rospkg.RosPack().get_path('localization')
+
+mutex = Lock()
 
 odom_buffer = [0, 0, 0, 0, 0]
 odom_msg_prev = [0, 0, 0, 0, 0]
@@ -25,6 +29,8 @@ odom_init = False
 
 scanner_buffer = [0, 0, 0, 0]
 scanner_last_update = datetime.now()
+
+last_odom = None
 
 pf = ParticleFilter()
 
@@ -66,6 +72,28 @@ def scanner_callback(msg):
     mutex.release()
 
 
+def process_data(odom_data, scanner_data, last_odom):
+
+    new_scan = np.array(scanner_data)[:, 1: 3]
+
+    dl = odom_data[3]
+    dr = odom_data[4]
+
+    c = 55.5
+    v_ = c * (dl + dr) / 2
+
+    transform = [0, 0, 0]
+    if last_odom is not None:
+        theta = odom_data[2]
+        dtheta = (theta - last_odom[2])
+
+        transform[1] = - v_ * np.sin(theta)
+        transform[0] = v_ * np.cos(theta)
+        transform[2] = dtheta
+
+    return np.array(transform), new_scan, odom_data.copy()
+
+
 def main():
     rospy.init_node('Localization', anonymous=True, log_level=rospy.INFO)
 
@@ -76,7 +104,7 @@ def main():
     loc_pub = rospy.Publisher('location', Float32MultiArray, queue_size=5)
 
     global delay_ms, last_update
-    global odom_buffer, odom_last_update
+    global odom_buffer, odom_last_update, last_odom
     global scanner_buffer, scanner_last_update
 
     odom_last_calculate = datetime.now()
@@ -85,6 +113,19 @@ def main():
     print('  Thread: started')
 
     mapping_log['starttime'] = datetime.timestamp(datetime.now())
+
+    saved_maps = glob.glob(PACKAGE_PATH + '/../../saves/*.grid.npy')
+    saved_config = glob.glob(PACKAGE_PATH + '/../../saves/*.config.json')
+
+    for x in saved_maps:
+        print(x)
+
+    for x in saved_config:
+        print(x)
+
+    pf.init()
+
+    rate = rospy.Rate(10)
 
     while not rospy.is_shutdown():
         try:
@@ -105,7 +146,9 @@ def main():
                     last_update = now
                     mutex.release()
 
-
+                    transform, new_scan, last_odom = process_data(
+                        odom_data, scanner_data, last_odom)
+                    pf.update(transform, new_scan)
 
                     scan = np.zeros((500, 500, 3), dtype=np.uint8)
                     scale = 50
@@ -118,6 +161,10 @@ def main():
                     cv2.waitKey(1)
         except Exception as e:
             print('  ERROR: ', e)
+
+        # loc_pub.publish()
+        print('loc', loc.getLoc())
+        rate.sleep()
 
 
 if __name__ == '__main__':

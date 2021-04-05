@@ -3,7 +3,7 @@ import numpy as np
 from collections import defaultdict
 from sympy import Matrix, MatrixSymbol, lambdify
 
-from .icp import tr_icp
+from .icp import icp, tr_icp
 
 
 POINT_DIM = 3

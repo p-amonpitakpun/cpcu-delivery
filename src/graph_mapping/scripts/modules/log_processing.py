@@ -94,7 +94,7 @@ def create_OccupancyGrid(slam, name=''):
 
 def compute(log, slam_type='graph', optimized=True, name='', run_graph=True, progress=True):
 
-    print('computing GraphSLAM...')
+    print(f'computing {slam_type}SLAM...')
     slam = SLAM[slam_type](optimized=optimized)
 
     last_odom = None

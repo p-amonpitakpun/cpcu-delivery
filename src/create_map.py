@@ -10,15 +10,17 @@ from datetime import datetime
 
 from graph_mapping.scripts.modules.log_processing import compute
 
-import os 
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
-LOG_PATH = dir_path + '/graph_mapping/logs/mapping_log'
+LOG_DIR = dir_path + '/graph_mapping/logs/mapping_log/'
+IMAGE_DIR = dir_path + '/../images/'
+SAVE_DIR = dir_path + '/../saves/'
 
 
 def main():
-    LOG_DIR = LOG_PATH + '/mapping_log-*.json'
-    print(LOG_DIR)
-    logs = glob.glob(LOG_DIR)
+    LOG_PATH = LOG_DIR + 'mapping_log-*.json'
+    print(LOG_PATH)
+    logs = glob.glob(LOG_PATH)
 
     if len(logs) > 0:
         print('create map from log (found {})'.format(len(logs)))
@@ -37,8 +39,10 @@ def main():
                 log = None
                 with open(logs[i], 'r') as fp:
                     log = json.load(fp)
-                graph_name = 'map {}'.format(datetime.fromtimestamp(log['starttime']))
-                graph, grid, g = compute(log, slam_type='icp', optimized=True, name=graph_name)
+                graph_name = 'map {}'.format(
+                    datetime.fromtimestamp(log['starttime']))
+                graph, grid, g = compute(
+                    log, slam_type='graph', optimized=False, name=graph_name)
                 # graph_optimized, g = compute(log, optimized=True)
 
             # u_vertices = [v.point for v in graph.getVertices()]
@@ -55,7 +59,7 @@ def main():
             # except:
             #     print('  Mapping: cannot show validation')
 
-            save_path = dir_path + '/../images/' + graph_name + '.png'
+            save_path = IMAGE_DIR + graph_name + '.png'
             print('saved to ', save_path)
             cv2.imwrite(save_path, g)
             cv2.imshow(graph_name, g)
@@ -66,7 +70,22 @@ def main():
             # print(gu)
             # print('close the plot to continue...')
             # plt.show()
-            print(grid)
+
+            occ_config = {
+                'resolution': grid.resolution,
+                'logOdd_occ': grid.logOdd_occ,
+                'logOdd_free': grid.logOdd_free,
+                'min_treshold': grid.min_treshold,
+                'max_treshold': grid.max_treshold,
+            }
+            occ_config_path = SAVE_DIR + graph_name + '.config.json'
+            with open(occ_config_path, 'w') as fp:
+                json.dump(occ_config, fp, indent=2)
+            print('saved occ config at', occ_config_path)
+
+            occ_grid_path = SAVE_DIR + graph_name + '.grid.npy'
+            np.save(occ_grid_path, grid.grid)
+            print('saved occ grid at', occ_grid_path)
 
         except ValueError as e:
             print('Error: ', e)
