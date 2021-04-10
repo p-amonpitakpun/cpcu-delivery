@@ -168,7 +168,7 @@ navigation = Planner()
 diffdrive = DifferentialDrive(ROBOT_DIMENSION)
 
 def publish():
-    publisher = rospy.Publisher('publisher', Float32MultiArray, queue_size=10)
+    publisher = rospy.Publisher('robotControl', Float32MultiArray, queue_size=10)
     rate = rospy.Rate(10)
     msg = Float32MultiArray()
     while not rospy.is_shutdown():
