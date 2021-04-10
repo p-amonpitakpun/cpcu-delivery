@@ -8,13 +8,13 @@ import pprint
 import rospkg
 import rospy
 import sys
+import traceback
 
 from datetime import datetime
 from std_msgs.msg import String, Float32MultiArray
 from sensor_msgs.msg import Image, LaserScan
 from threading import Lock, Thread
 
-# from modules.icp import icp
 from modules.PF import ParticleFilter
 
 
@@ -102,7 +102,8 @@ def main():
     scanner_sub = rospy.Subscriber(
         'scannerData', Float32MultiArray, scanner_callback)
 
-    loc_pub = rospy.Publisher('location', Float32MultiArray, queue_size=5)
+    pose_pub = rospy.Publisher('pose', Float32MultiArray, queue_size=5)
+    map_pub = rospy.Publisher('map', Float32MultiArray, queue_size=5)
 
     global delay_ms, last_update
     global odom_buffer, odom_last_update, last_odom
@@ -136,8 +137,10 @@ def main():
                         scanner_last_update > scan_last_calculate:
 
                     mutex.acquire()
-                    odom_data = odom_buffer.copy(),
+                    odom_data = odom_buffer.copy()
                     scanner_data = scanner_buffer.copy()
+
+                    print(odom_data, odom_buffer)
 
                     odom_buffer[3] = 0
                     odom_buffer[4] = 0
@@ -150,6 +153,8 @@ def main():
                     transform, new_scan, last_odom = process_data(
                         odom_data, scanner_data, last_odom)
                     pf.update(transform, new_scan)
+                    print('PF updated with \tT:', transform)
+                    print('loc', pf.getLoc())
 
                     scan = np.zeros((500, 500, 3), dtype=np.uint8)
                     scale = 50
@@ -160,11 +165,17 @@ def main():
 
                     cv2.imshow('scan', scan)
                     cv2.waitKey(1)
+
+                    last_update = datetime.now()
+
+                    # Publish
+                    pose_msg = Float32MultiArray(data=pf.getLoc())
+                    pose_pub.publish(pose_msg)
         except Exception as e:
             print('  ERROR: ', e)
+            traceback.print_exc()
 
         # loc_pub.publish()
-        print('loc', pf.getLoc())
         # rate.sleep()
 
 

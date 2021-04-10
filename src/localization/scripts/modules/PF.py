@@ -37,6 +37,9 @@ class ParticleFilter():
         self.particle = init_pose
         self.particle_velocity = init_vel
 
+        self.particles = None
+        self.scores = np.array([1] * self.N) / self.N
+
     def update(self, transform, laser_scanner_data):
         now = datetime.now()
         dt_s = (
@@ -57,6 +60,10 @@ class ParticleFilter():
         self.last_update = now
 
     def sample(self):
+
+        if self.particles is None:
+            self.particles = np.random.uniform(low=np.array([-2.5, -2.5, 0]), high=np.array([2.5, 2.5, np.pi * 2]), size=(self.N, 3))
+
         if len(self.scores) != len(self.particles):
             raise Exception(
                 f'Error: the length of scores ({len(self.scores)}) is not equal to the number of particles ({len(self.particles)}).')
@@ -80,12 +87,12 @@ class ParticleFilter():
         return predicted_particles
 
     def get_scores(self, particles, laser_scanner_data):
-        scores_length = len(particles.shape[0])
+        scores_length = len(particles)
         scores = []
         for i in range(scores_length):
             score = np.random.rand()
             scores.append(score)
-        return np.array(scores)
+        return np.array(scores) / np.sum(scores)
 
     def getLoc(self):
         now = datetime.now()
