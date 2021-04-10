@@ -31,6 +31,7 @@ scanner_buffer = [0, 0, 0, 0]
 scanner_last_update = datetime.now()
 
 last_odom = None
+last_update = None
 
 pf = ParticleFilter()
 
@@ -110,22 +111,22 @@ def main():
     odom_last_calculate = datetime.now()
     scan_last_calculate = datetime.now()
 
-    print('  Thread: started')
-
-    mapping_log['starttime'] = datetime.timestamp(datetime.now())
-
     saved_maps = glob.glob(PACKAGE_PATH + '/../../saves/*.grid.npy')
     saved_config = glob.glob(PACKAGE_PATH + '/../../saves/*.config.json')
 
-    for x in saved_maps:
-        print(x)
+    for i, x in enumerate(saved_maps):
+        print(i, ':', x)
+    map_idx = int(input('choose saved map: ').strip())
 
-    for x in saved_config:
-        print(x)
+    for i,  x in enumerate(saved_config):
+        print(i, ':', x)
+    config_idx = int(input('choose saved map config: ').strip())
 
-    pf.init()
+    pf.init(ref_map_path=saved_maps[map_idx],
+            ref_map_config_path=saved_config[config_idx])
 
-    rate = rospy.Rate(10)
+    # rate = rospy.Rate(10)
+    delay_ms = 100
 
     while not rospy.is_shutdown():
         try:
@@ -163,8 +164,8 @@ def main():
             print('  ERROR: ', e)
 
         # loc_pub.publish()
-        print('loc', loc.getLoc())
-        rate.sleep()
+        print('loc', pf.getLoc())
+        # rate.sleep()
 
 
 if __name__ == '__main__':
