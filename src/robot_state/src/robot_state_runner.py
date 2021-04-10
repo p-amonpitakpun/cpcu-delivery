@@ -15,7 +15,7 @@ def planning_callback(command):
     print('ROBOT_STATE: Call planning callback function')
     req = json.dumps(command)
 
-    # rospy.wait_for_service('planning')
+    rospy.wait_for_service('planning')
 
     try:
         planning_req = rospy.ServiceProxy('planning', Planning)
@@ -48,7 +48,7 @@ def main():
 
     rospy.init_node('robot_state_runner', anonymous=True)
     # rospy.Subscriber(topic, type, callback)
-
+	
     # RabbitMQ 
     connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
     channel = connection.channel()
@@ -57,8 +57,6 @@ def main():
     channel.queue_declare(queue='stopCommand')
     channel.basic_consume(queue='stopCommand', on_message_callback=stopCommand_callback, auto_ack=True)
     channel.start_consuming()
-
-    rospy.spin()
 
 
 if __name__ == "__main__":
