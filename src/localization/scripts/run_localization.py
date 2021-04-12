@@ -33,7 +33,7 @@ scanner_last_update = datetime.now()
 last_odom = None
 last_update = None
 
-pf = ParticleFilter()
+pf = ParticleFilter(N=200)
 
 
 def odom_callback(msg):
@@ -140,8 +140,6 @@ def main():
                     odom_data = odom_buffer.copy()
                     scanner_data = scanner_buffer.copy()
 
-                    print(odom_data, odom_buffer)
-
                     odom_buffer[3] = 0
                     odom_buffer[4] = 0
 
@@ -153,8 +151,8 @@ def main():
                     transform, new_scan, last_odom = process_data(
                         odom_data, scanner_data, last_odom)
                     pf.update(transform, new_scan)
-                    print('PF updated with \tT:', transform)
-                    print('loc', pf.getLoc())
+                    # print('PF updated with \tT:', transform)
+                    # print('loc', pf.getLoc())
 
                     scan = np.zeros((500, 500, 3), dtype=np.uint8)
                     scale = 50
@@ -164,6 +162,9 @@ def main():
                             scan, (int(250 + p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
 
                     cv2.imshow('scan', scan)
+                    name, img = pf.getImage()
+                    if img is not None:
+                        cv2.imshow(name, img)
                     cv2.waitKey(1)
 
                     last_update = datetime.now()
