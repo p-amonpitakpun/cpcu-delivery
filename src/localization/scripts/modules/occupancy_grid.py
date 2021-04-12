@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 
 
@@ -13,8 +14,16 @@ class OccupancyGrid:
     def getShape(self):
         return self.grid.shape
 
+    def getImage(self, min_treshold, max_treshold):
+        treshold_range = max_treshold - min_treshold
+        grid = (
+            (self.grid.copy() - min_treshold) / treshold_range * 255
+        ).astype(np.uint8)
+        grid = 255 - cv2.cvtColor(grid, cv2.COLOR_GRAY2RGB)
+        return grid
+
     def getOccupy(self, x, y):
-        return self.grid[x, y]
+        return self.grid[y, x]
 
     def setOccupiedCell(self, x, y):
         if x >= self.grid.shape[0] or y >= self.grid.shape[1]:
@@ -69,7 +78,8 @@ class OccupancyGrid:
                     self.setFreeCell(x_int, y_int)
 
                 y_int = int(
-                    ((y_intf - y_int0) * (x_int - x_int0) / (x_intf - x_int0) + y_int0)
+                    ((y_intf - y_int0) * (x_int - x_int0) /
+                     (x_intf - x_int0) + y_int0)
                 )
                 if (
                     0 <= x_int < self.grid.shape[0]
