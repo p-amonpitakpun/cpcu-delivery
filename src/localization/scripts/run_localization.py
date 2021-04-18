@@ -14,6 +14,7 @@ from datetime import datetime
 from std_msgs.msg import String, Float32MultiArray
 from sensor_msgs.msg import Image, LaserScan
 from threading import Lock, Thread
+from robot_state.srv import Localization, LocalizationResponse
 
 from modules.PF import ParticleFilter
 
@@ -94,9 +95,15 @@ def process_data(odom_data, scanner_data, last_odom):
 
     return np.array(transform), new_scan, odom_data.copy()
 
+def handle_add_two_ints(req):
+    occupancy = np.array([[1,2,3],[5,2,3]])
+    occupancy_width = occupancy.shape[1]
+    occupancy = occupancy.flatten()
+    return LocalizationResponse(occupancy,occupancy_width, [1,2],[1.2,3.3])
 
 def main():
     rospy.init_node('Localization', anonymous=True, log_level=rospy.INFO)
+    s = rospy.Service('localization', Localization, handle_add_two_ints)
 
     odom_sub = rospy.Subscriber('odomData', Float32MultiArray, odom_callback)
     scanner_sub = rospy.Subscriber(
