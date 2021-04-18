@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 
+import signal
 import json
 import pika
 import queue
 import rospy
 import threading
+import sys
 
 #from sensor_msgs import Image
-from robot_state.srv import Planning
+from robot_state.srv import Planning, Localization
+
+def signal_handler(sig, frame):
+    sys.exit(0)
 
 
 def planning_callback(command):
@@ -23,6 +28,20 @@ def planning_callback(command):
         res = planning_req(req)
         print('ROBOT_STATE: Receive planning response:', res.__dict__)
         return res.res
+    except rospy.ServiceException as e:
+        print("ROBOT_STATE: Service call failed: {}".format(e))
+
+def locallization_call():
+
+    print('ROBOT_STATE: Call localization for data')
+    req = "hi"
+    rospy.wait_for_service('localization')
+
+    try:
+        localization_req = rospy.ServiceProxy('localization', Localization)
+        print('ROBOT_STATE: Send request:', req)
+        res = localization_req(req)
+        print('ROBOT_STATE: Receive response:', res)
     except rospy.ServiceException as e:
         print("ROBOT_STATE: Service call failed: {}".format(e))
 
@@ -60,6 +79,12 @@ def main():
     # rospy.Subscriber(topic, type, callback)
     rabbit_mq_thread = threading.Thread(target=rabbitmq_thread, args=())
     rabbit_mq_thread.start()
+
+    rate = rospy.Rate(10)
+    while True:
+        locallization_call()
+        signal.signal(signal.SIGINT, signal_handler)
+        rate.sleep()
     rospy.spin()
 
 
