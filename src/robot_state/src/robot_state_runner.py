@@ -42,13 +42,7 @@ def stopCommand_callback(ch, method, properties, body):
         "status": 2
     })
 
-def main():
-
-    print('ROBOT STATE ')
-
-    rospy.init_node('robot_state_runner', anonymous=True)
-    # rospy.Subscriber(topic, type, callback)
-	
+def rabbitmq_thread():
     # RabbitMQ 
     connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
     channel = connection.channel()
@@ -57,6 +51,16 @@ def main():
     channel.queue_declare(queue='stopCommand')
     channel.basic_consume(queue='stopCommand', on_message_callback=stopCommand_callback, auto_ack=True)
     channel.start_consuming()
+
+def main():
+
+    print('ROBOT STATE ')
+
+    rospy.init_node('robot_state_runner', anonymous=True)
+    # rospy.Subscriber(topic, type, callback)
+    rabbit_mq_thread = threading.Thread(target=rabbitmq_thread, args=())
+    rabbit_mq_thread.start()
+    rospy.spin()
 
 
 if __name__ == "__main__":
