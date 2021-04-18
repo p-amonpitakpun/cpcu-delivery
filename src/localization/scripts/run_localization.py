@@ -33,12 +33,16 @@ scanner_last_update = datetime.now()
 last_odom = None
 last_update = None
 
-pf = ParticleFilter(N=200)
+pf = ParticleFilter(N=100)
 
+real_pose = [0, 0, 0]
+real_pose_origin = [0, 0, 0]
+real_pose_init = False
 
 def odom_callback(msg):
     global mutex
     global odom_buffer, odom_init, odom_last_update, odom_msg_prev
+    global real_pose, real_pose_origin, real_pose_init
 
     odom_msg = list(msg.data)
 
@@ -54,6 +58,13 @@ def odom_callback(msg):
     # print(odom_buffer)
     odom_init = True
     odom_last_update = now
+
+    if real_pose_init:
+        real_pose = [odom_msg[-2] / 100 - real_pose_origin[0], odom_msg[-1] / 100 - real_pose_origin[1], odom_buffer[2] - real_pose_origin[2]]
+    else:
+        real_pose_origin = [odom_msg[-2] / 100, odom_msg[-1] / 100, odom_buffer[2]]
+        real_pose_init = True
+
     mutex.release()
 
 
@@ -67,7 +78,7 @@ def scanner_callback(msg):
     n = len(msg.data)
     for i in range(n // 3):
         point = list(msg.data[3 * i: 3 * (i + 1)])
-        point[2] *= -1
+        # point[2] *= -1
         scanner_buffer.append(point)
     scanner_last_update = now
     mutex.release()
@@ -88,7 +99,7 @@ def process_data(odom_data, scanner_data, last_odom):
         theta = odom_data[2]
         dtheta = (theta - last_odom[2])
 
-        transform[1] = - v_ * np.sin(theta)
+        transform[1] = v_ * np.sin(theta)
         transform[0] = v_ * np.cos(theta)
         transform[2] = dtheta
 
@@ -106,7 +117,7 @@ def main():
     map_pub = rospy.Publisher('map', Float32MultiArray, queue_size=5)
 
     global delay_ms, last_update
-    global odom_buffer, odom_last_update, last_odom
+    global odom_buffer, odom_last_update, last_odom, real_pose
     global scanner_buffer, scanner_last_update
 
     odom_last_calculate = datetime.now()
@@ -127,7 +138,7 @@ def main():
             ref_map_config_path=saved_config[config_idx])
 
     # rate = rospy.Rate(10)
-    delay_ms = 100
+    delay_ms = 10
 
     while not rospy.is_shutdown():
         try:
@@ -151,6 +162,7 @@ def main():
                     transform, new_scan, last_odom = process_data(
                         odom_data, scanner_data, last_odom)
                     pf.update(transform, new_scan)
+                    pf.showRealPose(real_pose, new_scan)
                     # print('PF updated with \tT:', transform)
                     # print('loc', pf.getLoc())
 
@@ -168,6 +180,8 @@ def main():
                     cv2.waitKey(1)
 
                     last_update = datetime.now()
+
+                    # print('real_pose', real_pose)
 
                     # Publish
                     pose_msg = Float32MultiArray(data=pf.getLoc())
