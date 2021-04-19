@@ -97,11 +97,9 @@ def main():
         # Send the Localization Data to Planning
         command = {
             "type": SET_MAP,
-            "payload": {
-                "real_position": real_position,
-                "occupancy_grid_position": occupancy_grid_position,
-                "image": image
-            }
+            "real_position": real_position,
+            "occupancy_grid_position": occupancy_grid_position,
+            "map": image
         }
         planning_callback(command)
 
