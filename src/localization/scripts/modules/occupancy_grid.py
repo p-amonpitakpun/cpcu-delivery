@@ -14,16 +14,22 @@ class OccupancyGrid:
     def getShape(self):
         return self.grid.shape
 
-    def getImage(self, min_treshold, max_treshold):
-        treshold_range = max_treshold - min_treshold
-        grid = (
-            (self.grid.copy() - min_treshold) / treshold_range * 255
-        ).astype(np.uint8)
-        grid = 255 - cv2.cvtColor(grid, cv2.COLOR_GRAY2RGB)
-        return grid
-
     def getOccupy(self, x, y):
         return self.grid[y, x]
+
+    def calcProbability(self, log_odd):
+        ex = np.exp(log_odd)
+        return ex / (1 + ex)
+
+    def getProbabilty(self, x, y):
+        log_odd = self.getOccupy(x, y)
+        return self.calcProbability(log_odd)
+
+    def getImage(self, min_treshold, max_treshold):
+        prob = self.calcProbability(self.grid.copy())
+        grid = 255 - (prob * 255).astype(np.uint8)
+        grid = cv2.cvtColor(grid, cv2.COLOR_GRAY2BGR)
+        return grid
 
     def setOccupiedCell(self, x, y):
         if x >= self.grid.shape[0] or y >= self.grid.shape[1]:
