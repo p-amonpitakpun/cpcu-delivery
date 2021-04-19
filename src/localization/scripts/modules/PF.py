@@ -69,11 +69,17 @@ class ParticleFilter():
         else:
             self.particle_hist.append(self.particle.copy())
 
-    def getLoc(self):
+    def getPose(self):
         now = datetime.now()
         dt_s = (
             now - self.last_update).total_seconds() if self.last_update is not None else 0
         return self.particle + self.particle_velocity * dt_s
+
+    def getCell(self):
+        return self.cvtSim2Grid(self.particle)
+
+    def getMap(self):
+        return self.occGrid.getImage(-50, 50)
 
     def getImage(self):
         image_list = list(self.images.items())
@@ -86,36 +92,6 @@ class ParticleFilter():
             return ret_name, ret_image
         else:
             return None, None
-
-    def showRealPose(self, pose, laser_scanner_data):
-        print('real pose\t', pose)
-        reso = self.occGrid.resolution
-        y_shape, x_shape = self.occGrid.getShape()
-        x_offset, y_offset = x_shape // 2, y_shape // 2
-        cell = self.cvSim2Grid(pose, reso, x_offset, y_offset)
-
-        dx = np.array(pose)
-        psi = dx[2]
-        R = np.array([[np.cos(psi), - np.sin(psi)],
-                        [np.sin(psi), np.cos(psi)]])
-        T = dx[0: 2].reshape((2, 1))
-
-        scan = []
-        for p in laser_scanner_data:
-            p = np.dot(p, R) + T.T
-            p = p.reshape((2,))
-            point = self.cvSim2Grid(p, reso, x_offset, y_offset)
-            scan.append(point)
-
-        img = self.occGrid.getImage(-50, 50)
-        for prev in self.real_pose_hist:
-            img = cv2.circle(img, tuple(self.cvSim2Grid(prev, reso, x_offset, y_offset)), 1, (255, 105, 0), -1)
-        img = cv2.circle(img, tuple(cell), 5, (255, 0, 0), -1)
-        for point in scan:
-            img = cv2.circle(img, tuple(point), 2, (0, 0, 255), -1)
-
-        self.images['real_pose'] = img
-        self.real_pose_hist.append(pose)
 
     def sample(self):
 
@@ -146,7 +122,7 @@ class ParticleFilter():
                 f'Error: the shape of transformation {transform.shape} is not the same as the shape of particle {particles.shape}.')
 
         # cov_matrix = np.array([[1, 0, 1], [0, 1, 1], [1, 1, 1]]) * 1e-6
-        transform_err = np.array([1e-3, 1e-3, 0.05])
+        transform_err = np.array([1e-3, 1e-3, 0.01])
 
         predicted_particles = particles + np.random.uniform(low=transform - transform_err,
                                                             high=transform + transform_err,
@@ -154,15 +130,16 @@ class ParticleFilter():
 
         return predicted_particles
 
-    def cvSim2Grid(self, sim_pose, reso, x_offset, y_offset):
+    def cvtSim2Grid(self, sim_pose):
+        reso = self.occGrid.resolution
+        y_shape, x_shape = self.occGrid.getShape()
+        x_offset, y_offset = x_shape // 2, y_shape // 2
+
         return [int(sim_pose[0] // reso + x_offset), int( - sim_pose[1] // reso + y_offset)]
 
     def get_scores(self, particles, laser_scanner_data):
         scores_length = len(particles)
         scores = [0] * scores_length
-        # for i in range(scores_length):
-        #     score = np.random.rand()
-        #     scores.append(score)
 
         reso = self.occGrid.resolution
         y_shape, x_shape = self.occGrid.getShape()
@@ -172,27 +149,25 @@ class ParticleFilter():
         particle_scans = []
 
         for i, particle in enumerate(particles):
-            score = 0
-
             X = particle
-            point_cell = self.cvSim2Grid(X, reso, x_offset, y_offset)
+            point_cell = self.cvtSim2Grid(X)
             particle_cells.append(point_cell)
 
             dx = particle
-            # dx[1] = - dx[1]
             psi = dx[2]
             R = np.array([[np.cos(psi), - np.sin(psi)],
                           [np.sin(psi), np.cos(psi)]])
             T = dx[0: 2].reshape((2, 1))
 
+            score = 0
             scan = []
             for p in laser_scanner_data:
-                p = np.dot(p, R) + T.T
+                p = np.dot(p, R.T) + T.T
                 p = p.reshape((2,))
-                point = self.cvSim2Grid(p, reso, x_offset, y_offset)
+                point = self.cvtSim2Grid(p)
                 if 0 <= point[0] < x_shape and 0 <= point[1] < y_shape:
-                    grid_score = self.occGrid.getOccupy(*point)
-                    score += grid_score if grid_score > 0 else 0
+                    grid_score = self.occGrid.getProbabilty(*point)
+                    score += grid_score
                 scan.append(point)
 
             if self.occGrid.getOccupy(*point_cell) == 0:
@@ -215,14 +190,12 @@ class ParticleFilter():
                     img = cv2.circle(img, tuple(point), 1, (70, 70, 105), -1)
 
         idx = np.argmax(norm_scores)
-        img = cv2.circle(img, tuple(particle_list[idx][0]), 2, (255, 0, 0), -1)
+        img = cv2.circle(img, tuple(particle_list[idx][0]), 5, (255, 50, 0), -1)
         for point in particle_list[idx][1]:
             img = cv2.circle(img, tuple(point), 2, (0, 0, 255), -1)
 
         for point in self.particle_hist:
-            img = cv2.circle(img, tuple(self.cvSim2Grid(point, reso, x_offset, y_offset)), 2, (255, 0, 0), -1)
-
-        print(f'\nloc: {particles[idx]}\tmaxscore: {max_score}\tM: {self.M}')
+            img = cv2.circle(img, tuple(self.cvtSim2Grid(point)), 2, (255, 0, 0), -1)
 
         self.images['particles'] = img
 
