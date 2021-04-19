@@ -48,30 +48,17 @@ def locallization_call():
     except rospy.ServiceException as e:
         print("ROBOT_STATE: Service call failed: {}".format(e))
 
-def moveCommand_callback(ch, method, properties, body):
-    print(" [x] Received move %r" % body)
+def webCommand_callback(ch, method, properties, body):
+    print(" [x] Received web command %r" % body)
     command_json = json.loads(body)
-    planning_callback({
-        "type": 0,
-        "goal": command_json["destination"]
-    })
-
-def stopCommand_callback(ch, method, properties, body):
-    print(" [x] Received stop %r" % body)
-    command_json = json.loads(body)
-    planning_callback({
-        "type": 1,
-        "status": 2
-    })
+    planning_callback(command_json)
 
 def rabbitmq_thread():
     # RabbitMQ 
     connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
     channel = connection.channel()
-    channel.queue_declare(queue='moveCommand')
-    channel.basic_consume(queue='moveCommand', on_message_callback=moveCommand_callback, auto_ack=True)
-    channel.queue_declare(queue='stopCommand')
-    channel.basic_consume(queue='stopCommand', on_message_callback=stopCommand_callback, auto_ack=True)
+    channel.queue_declare(queue='webCommand')
+    channel.basic_consume(queue='webCommand', on_message_callback=webCommand_callback, auto_ack=True)
     channel.start_consuming()
 
 def main():

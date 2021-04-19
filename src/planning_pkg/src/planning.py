@@ -199,15 +199,6 @@ def create_map(navigation, map):
         if sum(map[i][499]) == sum(map[i+1][499]) and sum(map[i][499]) == 255*3:
             navigation.add_path((i, 499), (i+1, 499))
 
-def dummie():
-    navigation.add_path((0, 0), (1, 1))
-    navigation.add_path((1, 1), (1, 2))
-    navigation.set_position(0, 0, 45)
-    navigation.set_goal(1, 2, 45)
-    navigation.calculate_shortest_path()
-    diffdrive.create_robot_motion(navigation)
-    print('dummie')
-
 def robot_state_callback(req):
     
     commands = json.loads(req.req)

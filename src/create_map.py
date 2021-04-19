@@ -42,7 +42,7 @@ def main():
                 graph_name = 'map {}'.format(
                     datetime.fromtimestamp(log['starttime']))
                 graph, grid, g = compute(
-                    log, slam_type='graph', optimized=False, name=graph_name)
+                    log, slam_type='graph', optimized=False, name=graph_name, size=1000)
                 # graph_optimized, g = compute(log, optimized=True)
 
             # u_vertices = [v.point for v in graph.getVertices()]
