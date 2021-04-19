@@ -106,9 +106,11 @@ class DifferentialDrive:
         self.sum_error = 0
         self.prev_error = 0
         self.diff_error = 0
+        self.current_position = None
 
     def create_robot_motion(self, planner: Planner):
         degree = None
+        self.current_position = planner.current_position+(planner.start_direction,)
         self.robot_motion = deque()
         for idx, path in enumerate(planner.path):
             if not idx:
@@ -123,6 +125,7 @@ class DifferentialDrive:
         self.robot_motion[len(self.robot_motion)-1][1], planner.final_direction)
 
     def get_motor_speed(self, pos_x: float, pos_y: float, direction: float, time: float, obstacle: bool = False):
+        self.current_position = (pos_x, pos_y, direction)
         if obstacle:
             return (0, 0)
         try:
@@ -172,7 +175,7 @@ def publish():
     rate = rospy.Rate(10)
     msg = Float32MultiArray()
     while not rospy.is_shutdown():
-        if navigation.current_position:
+        if diffdrive.robot_motion and navigation.current_position:
             pos_x, pos_y, direction = navigation.current_position
             message = diffdrive.get_motor_speed(pos_x, pos_y, direction, datetime.now().timestamp(), obstacle)
             message = Float32MultiArray(data=message)
@@ -182,6 +185,19 @@ def publish():
             publisher.publish(message)
         rate.sleep()
 
+def create_map(navigation, map):
+    for x in range(499):
+        for y in range(499):
+            if sum(map[x][y]) == 255*3:
+                if sum(map[x+1][y]) == 255*3:
+                    navigation.add_path((x, y), (x, y+1))
+                if sum(map[x][y+1]) == 255*3:
+                    navigation.add_path((x, y), (x+1, y))
+    for i in range(499):
+        if sum(map[499][i]) == sum(map[499][i+1]) and sum(map[499][i]) == 255*3:
+            navigation.add_path((499, i), (499, i+1))
+        if sum(map[i][499]) == sum(map[i+1][499]) and sum(map[i][499]) == 255*3:
+            navigation.add_path((i, 499), (i+1, 499))
 
 def dummie():
     navigation.add_path((0, 0), (1, 1))
@@ -197,15 +213,46 @@ def robot_state_callback(req):
     commands = json.loads(req.req)
     response = {'status':'type error'}
     if commands['type'] == SET_GOAL:
-        dummie()
-        response = commands
-        response['status'] = 'work!'
+        navigation.set_goal(commands['goal'][0], commands['goal'][1], 0)
+        navigation.calculate_shortest_path()
+        response['status'] = 'ok'
     elif commands['type'] == MOVE:
-        pass
+        if commands['status'] == 0:
+            # Pause
+            memory = [navigation.goal]
+            navigation.set_position(diffdrive.current_position)
+            navigation.set_goal(diffdrive.current_position)
+            navigation.calculate_shortest_path()
+            diffdrive.create_robot_motion(navigation)
+        elif commands['status'] == 1:
+            # Go/Resume
+            if memory:
+                navigation.set_goal(memory[0])
+                navigation.calculate_shortest_path()
+                diffdrive.create_robot_motion(navigation)
+                memory = []
+            else:
+                diffdrive.create_robot_motion(navigation)
+        else:
+            # Cancel
+            navigation.set_position(diffdrive.current_position)
+            navigation.set_goal(diffdrive.current_position)
+            navigation.calculate_shortest_path()
+            diffdrive.create_robot_motion(navigation)
     elif commands['type'] == SET_MAP:
-        from pprint import pprint
-        pprint(commands)
-        pass
+        #from pprint import pprint
+        #pprint(commands)
+        #print(commands['real_position'])
+        #print(commands['occupancy_grid_position'])
+        #print(commands['map'][250][250])
+        if len(navigation.graph):
+            if sum(commands['map'][251][250]) != 255*3:
+                obstacle = True
+                navigation.del_node((251, 250))
+            else:
+                obstacle = False
+        else:
+            create_map(navigation, commands['map'])
     return json.dumps(response)
 
 def main():
