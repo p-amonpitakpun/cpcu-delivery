@@ -203,6 +203,8 @@ def robot_state_callback(req):
     elif commands['type'] == MOVE:
         pass
     elif commands['type'] == SET_MAP:
+        from pprint import pprint
+        pprint(commands)
         pass
     return json.dumps(response)
 

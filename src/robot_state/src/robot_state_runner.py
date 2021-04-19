@@ -7,6 +7,12 @@ import queue
 import rospy
 import threading
 import sys
+from cv_bridge import CvBridge
+
+CV_BRIDGE = CvBridge()
+SET_GOAL = 0
+MOVE = 1
+SET_MAP = 2
 
 #from sensor_msgs import Image
 from robot_state.srv import Planning, Localization
@@ -24,9 +30,7 @@ def planning_callback(command):
 
     try:
         planning_req = rospy.ServiceProxy('planning', Planning)
-        print('ROBOT_STATE: Send planning request:', req)
         res = planning_req(req)
-        print('ROBOT_STATE: Receive planning response:', res.__dict__)
         return res.res
     except rospy.ServiceException as e:
         print("ROBOT_STATE: Service call failed: {}".format(e))
@@ -34,14 +38,13 @@ def planning_callback(command):
 def locallization_call():
 
     print('ROBOT_STATE: Call localization for data')
-    req = "hi"
+    req = "calling"
     rospy.wait_for_service('localization')
 
     try:
         localization_req = rospy.ServiceProxy('localization', Localization)
-        print('ROBOT_STATE: Send request:', req)
-        res = localization_req(req)
-        print('ROBOT_STATE: Receive response:', res)
+        return_value = localization_req(req)
+        return return_value.real_position, return_value.occupancy_grid_position, CV_BRIDGE.imgmsg_to_cv2(return_value.image).tolist()
     except rospy.ServiceException as e:
         print("ROBOT_STATE: Service call failed: {}".format(e))
 
@@ -81,10 +84,33 @@ def main():
     rabbit_mq_thread.start()
 
     rate = rospy.Rate(10)
+
+    real_position = None
+    occupancy_grid_position = None
+    image = None
+
     while True:
-        locallization_call()
+
+        # Localization Data
+        real_position, occupancy_grid_position, image = locallization_call()
+
+        # Send the Localization Data to Planning
+        command = {
+            "type": SET_MAP,
+            "payload": {
+                "real_position": real_position,
+                "occupancy_grid_position": occupancy_grid_position,
+                "image": image
+            }
+        }
+        planning_callback(command)
+
+        # Handle Ctrl+c
         signal.signal(signal.SIGINT, signal_handler)
+
+        # Sleep
         rate.sleep()
+
     rospy.spin()
 
 
