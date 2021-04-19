@@ -10,7 +10,9 @@ import rospy
 import sys
 import traceback
 
+from cv_bridge import CvBridge, CvBridgeError
 from datetime import datetime
+from rospy.numpy_msg import numpy_msg
 from std_msgs.msg import String, Float32MultiArray
 from sensor_msgs.msg import Image, LaserScan
 from threading import Lock, Thread
@@ -107,14 +109,18 @@ def process_data(odom_data, scanner_data, last_odom):
 
 
 def main():
+    cvBridge = CvBridge()
+
     rospy.init_node('Localization', anonymous=True, log_level=rospy.INFO)
 
+    # Subscribers
     odom_sub = rospy.Subscriber('odomData', Float32MultiArray, odom_callback)
     scanner_sub = rospy.Subscriber(
         'scannerData', Float32MultiArray, scanner_callback)
 
+    # Publisher
     pose_pub = rospy.Publisher('pose', Float32MultiArray, queue_size=5)
-    map_pub = rospy.Publisher('map', Float32MultiArray, queue_size=5)
+    map_pub = rospy.Publisher('map', Image, queue_size=5)
 
     global delay_ms, last_update
     global odom_buffer, odom_last_update, last_odom, real_pose
@@ -162,7 +168,6 @@ def main():
                     transform, new_scan, last_odom = process_data(
                         odom_data, scanner_data, last_odom)
                     pf.update(transform, new_scan)
-                    pf.showRealPose(real_pose, new_scan)
                     # print('PF updated with \tT:', transform)
                     # print('loc', pf.getLoc())
 
@@ -171,7 +176,7 @@ def main():
                     scan = cv2.circle(scan, (250, 250), 5, (100, 250, 50), -1)
                     for p in scanner_buffer:
                         scan = cv2.circle(
-                            scan, (int(250 + p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
+                            scan, (int(250 - p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
 
                     cv2.imshow('scan', scan)
                     name, img = pf.getImage()
@@ -181,11 +186,24 @@ def main():
 
                     last_update = datetime.now()
 
-                    # print('real_pose', real_pose)
+                    pose = pf.getPose()
+                    cell = pf.getCell()
+                    print(f'\nloc: {pose[: -1]}, dir: {(pose[-1] * 180 / np.pi + 360) % 360}')
+                    print(f'cell: {cell}')
 
                     # Publish
-                    pose_msg = Float32MultiArray(data=pf.getLoc())
-                    pose_pub.publish(pose_msg)
+                    try:
+                        pose_msg = Float32MultiArray(data=pf.getPose())
+                        pose_pub.publish(pose_msg)
+                    except CvBridgeError as e:
+                        rospy.logerr(e)
+
+                    try:
+                        map_msg = cvBridge.cv2_to_imgmsg(pf.getMap())
+                        map_pub.publish(map_msg)
+                    except CvBridgeError as e:
+                        rospy.logerr(e)
+                    
         except Exception as e:
             print('  ERROR: ', e)
             traceback.print_exc()
