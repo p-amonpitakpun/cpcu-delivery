@@ -141,9 +141,7 @@ class ParticleFilter():
         scores_length = len(particles)
         scores = [0] * scores_length
 
-        reso = self.occGrid.resolution
         y_shape, x_shape = self.occGrid.getShape()
-        x_offset, y_offset = x_shape // 2, y_shape // 2
 
         particle_cells = []
         particle_scans = []
