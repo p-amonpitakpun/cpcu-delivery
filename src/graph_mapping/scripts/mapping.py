@@ -17,7 +17,6 @@ from threading import Lock, Thread
 
 from modules.graph_slam import GraphSLAM
 from modules.log_processing import compute
-from modules.icp.icp import icp
 
 
 mutex = Lock()
@@ -79,12 +78,10 @@ def scanner_callback(msg):
 
     mutex.acquire()
     now = datetime.now()
-    # print('scanner', len(msg.data), now)
     scanner_buffer = []
     n = len(msg.data)
     for i in range(n // 3):
         point = list(msg.data[3 * i: 3 * (i + 1)])
-        point[2] *= -1
         scanner_buffer.append(point)
     scanner_last_update = now
     mutex.release()
@@ -95,7 +92,6 @@ def thread_function():
     global mapping_log
     global odom_buffer, odom_last_update
     global scanner_buffer, scanner_last_update
-    global validation
 
     odom_last_calculate = datetime.now()
     scan_last_calculate = datetime.now()
@@ -135,7 +131,7 @@ def thread_function():
                     scan = cv2.circle(scan, (250, 250), 5, (100, 250, 50), -1)
                     for p in scanner_buffer:
                         scan = cv2.circle(
-                            scan, (int(250 + p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
+                            scan, (int(250 - p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
 
                     cv2.imshow('scan', scan)
                     cv2.waitKey(1)
@@ -212,7 +208,7 @@ def main():
                     log = None
                     with open(logs[i], 'r') as fp:
                         log = json.load(fp)
-                    graph, gu = compute(log, optimized=False)
+                    graph, occ, gu = compute(log, optimized=False)
                     # graph_optimized, go = compute(log, optimized=True)
 
                 # u_vertices = [v.point for v in graph.getVertices()]
