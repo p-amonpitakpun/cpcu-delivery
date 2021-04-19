@@ -197,14 +197,16 @@ def robot_state_callback(req):
     commands = json.loads(req.req)
     response = {'status':'type error'}
     if commands['type'] == SET_GOAL:
+        from pprint import pprint
+        pprint(commands)
         dummie()
         response = commands
         response['status'] = 'work!'
     elif commands['type'] == MOVE:
-        pass
-    elif commands['type'] == SET_MAP:
         from pprint import pprint
         pprint(commands)
+        pass
+    elif commands['type'] == SET_MAP:
         pass
     return json.dumps(response)
 
