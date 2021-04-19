@@ -74,6 +74,8 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   robot_state
+  std_msgs
+  sensor_msgs
 )
 
 ################################################

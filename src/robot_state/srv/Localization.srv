@@ -1,6 +1,5 @@
 string req
 ---
-int32[] occupancy_grid
-int32 occupancy_grid_row_width
+sensor_msgs/Image image
 int32[] occupancy_grid_position
 float32[] real_position
