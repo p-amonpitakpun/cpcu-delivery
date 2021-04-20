@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Socket.IO Robot</title>
+    <style>
+        .con {
+            width: 800px;
+            height: 800px;
+            border: 2px solid black;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .box {
+            width: 80px;
+            height: 80px;
+            border: 1px solid black;
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+
+<body>
+    <h1 id="statustext">Status: </h1>
+    <div class="con" id="con">
+    </div>
+
+    <h1>Image from camera: </h1>
+    <img width="100" height="100" id="camera"></img>
+    <h1>GUI Command: </h1>
+    <p><b>Target Room:</b></p>
+    <input type="number" id="room_number" />
+    <br />
+    <button id="start">Start Delivery</button><br/>
+    <button id="pause">Pause Delivery</button>
+    <button id="resume">Resume Delivery</button>
+    <button id="stop">Stop Delivery</button>
+    <h1>Voice Command: </h1>
+    <button id="voicerec">Start Recording</button>
+    <div id="transcribed">Voice transcribed: <div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        var audioContext;
+        var myStream;
+        var scriptProcessor;
+        $(function () {
+            const queue_robotState = 'robotState';
+            const queue_robotImage = 'robotImage';
+            const queue_robotLidar = 'robotLidar';
+            const queue_robotOccupancyGrid = 'robotOccupancyGrid';
+            for (var i = 0; i < 9; i++) {
+                for (var i2 = 0; i2 < 9; i2++) {
+                    $("#con").append("<div class='box' id='box" + i.toString() + i2.toString() + "'></div>");
+                }
+            }
+            var current = {
+                x: 1,
+                y: 1
+            }
+            var socket = io();
+            socket.on(queue_robotState, function (msg) {
+                // clear
+                for (var i = 0; i < 9; i++) {
+                    for (var i2 = 0; i2 <9; i2++) {
+                        var now = $("#box" + i.toString() + i2.toString());
+                        now.css("background-color", "#ffffff");
+                    }
+                }
+                if(msg.type==0) {
+                    $("#statustext").text("Status: IDLE");
+                    var now = $("#box" + msg.current[0].toString() + msg.current[1].toString());
+                    now.css("background-color", "#000000");
+                }
+                else if(msg.type==1) {
+                    $("#statustext").text("Status: Planned moving");
+                    for(var i=0;i<msg.path.length;i++) {
+                        var now = $("#box" + msg.path[i][0].toString() + msg.path[i][1].toString());
+                        now.css("background-color", "#AAAAAA");
+                    }
+                    var now = $("#box" + msg.current[0].toString() + msg.current[1].toString());
+                    now.css("background-color", "#000000");
+                    var goal = $("#box" + msg.goal[0].toString() + msg.goal[1].toString());
+                    goal.css("background-color", "#00ff00");
+                }
+                else if(msg.type==2) {
+                    $("#statustext").text("Status: No Path Found");
+                    var now = $("#box" + msg.current[0].toString() + msg.current[1].toString());
+                    now.css("background-color", "#000000");
+                    var goal = $("#box" + msg.goal[0].toString() + msg.goal[1].toString());
+                    goal.css("background-color", "#00ff00");
+                }
+                else if(msg.type==3) {
+                    $("#statustext").text("Status: Robot ERROR");
+                    for (var i = 0; i < 9; i++) {
+                        for (var i2 = 0; i2 <9; i2++) {
+                            var now = $("#box" + i.toString() + i2.toString());
+                            now.css("background-color", "#aa0000");
+                        }
+                    }
+                }
+            });
+            socket.on(queue_robotImage, function (msg) {
+                $("#camera").attr("src", msg);
+            });
+            socket.on(queue_robotLidar, function (msg) {
+                console.log(msg);
+            });
+            socket.on(queue_robotOccupancyGrid, function (msg) {
+                console.log(msg);
+            });
+
+            socket.on('transcribe', function (msg) {
+                $("#transcribed").text("Voice transcribed: " + msg);
+            });
+
+            var recording = false;
+
+            const streamAudioData = e => {
+                const floatSamples = e.inputBuffer.getChannelData(0);
+                const data = Int16Array.from(floatSamples.map((n) => {
+                    var s = Math.max(-1, Math.min(1, n));
+                    return s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }));
+                console.log(data.buffer);
+                socket.emit('audio', data.buffer);
+            };
+
+            const startRecording = (stream, callback) => { 
+                audioContext = audioContext || new AudioContext(); 
+                if (!audioContext) { 
+                    return; 
+                }
+                myStream = stream; 
+
+                // AudioNode used to control the overall gain (or volume) of the audio graph 
+
+                const inputPoint = audioContext.createGain(); 
+                const microphone = audioContext.createMediaStreamSource(myStream); 
+                const analyser = audioContext.createAnalyser(); 
+                scriptProcessor = inputPoint.context.createScriptProcessor(2048, 2, 2); 
+
+                microphone.connect(inputPoint); 
+                inputPoint.connect(analyser); 
+                inputPoint.connect(scriptProcessor); 
+                scriptProcessor.connect(inputPoint.context.destination); 
+                    scriptProcessor.addEventListener('audioprocess', streamAudioData); 
+            }
+
+            const startrec=()=>{
+                window.AudioContext = window.AudioContext || window.webkitAudioContext; 
+                navigator.mediaDevices.getUserMedia( 
+                        { 
+                        audio: { 
+                        mandatory: { 
+                            googEchoCancellation: 'false', 
+                            googAutoGainControl: 'false', 
+                            googNoiseSuppression: 'false', 
+                            googHighpassFilter: 'false', 
+                            }, 
+                        }, 
+                }).then(startRecording) 
+                .catch( e => { 
+                    console.log(e); 
+                } 
+                );
+            }
+
+            const stoprec=()=>{
+                if (myStream) { 
+                    // stop the browser microphone 
+                    myStream.getTracks()[0].stop(); 
+                    myStream = null; 
+                }
+                if (scriptProcessor) { 
+                    scriptProcessor.removeEventListener('audioprocess', streamAudioData); 
+                }
+            }
+
+            socket.on('transcribestart', function (msg) {
+                startrec();
+            });
+
+            $("#voicerec").click((event)=>{
+                if(recording) {
+                    recording=false;
+                    stoprec();
+                    socket.emit('stoprec');
+                    $("#voicerec").text("Start Recording");
+                }
+                else {
+                    socket.emit('startnewrec');
+                    recording=true;
+                    $("#voicerec").text("Stop Recording");
+                }
+            });
+
+            $("#stop").click((event)=>{
+                socket.emit('stopCommand');
+            });
+
+            $("#start").click((event)=>{
+                var number = parseInt($('#room_number').val());
+                socket.emit('moveCommand',{
+                    destination: [Math.floor(number/100), number % 100]
+                });
+            });
+
+            $("#pause").click((event)=>{
+                socket.emit('pauseCommand');
+            });
+
+            $("#resume").click((event)=>{
+                socket.emit('resumeCommand');
+            });
+        });
+    </script>
+</body>
+
+</html>

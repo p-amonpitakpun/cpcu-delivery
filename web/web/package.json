@@ -1,0 +1,22 @@
+{
+  "name": "seniorweb",
+  "version": "1.0.0",
+  "description": "",
+  "main": "client.js",
+  "dependencies": {
+    "@google-cloud/speech": "^4.4.0",
+    "amqplib": "^0.6.0",
+    "express": "^4.17.1",
+    "grpc": "^1.24.4",
+    "image-to-base64": "^2.1.1",
+    "socket.io": "^3.1.0",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC"
+}

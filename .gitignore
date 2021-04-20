@@ -56,3 +56,8 @@ CATKIN_IGNORE
 
 # project directories
 images/
+
+# docker
+*.env
+node_modules
+mongodb_data

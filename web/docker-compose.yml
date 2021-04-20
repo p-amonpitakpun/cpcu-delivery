@@ -1,0 +1,35 @@
+version: "3.8"
+   
+services:
+  rabbit:
+    image: rabbitmq:3-management
+    ports:
+        - "9998:5672"
+        - "9999:15672"
+    env_file:
+        - rabbit.env
+    networks:
+      - rabbiter
+  mongo:
+    image: "mongo:4.4.1-bionic"
+    ports:
+      - "9997:27017"
+    container_name: mongo
+    volumes:
+      - ./mongodb_data:/data/db
+    restart: "unless-stopped"
+    env_file:
+      - mongo.env
+  web:
+    build: web
+    image: "web"
+    ports:
+      - "8080:3000"
+    env_file:
+      - web.env
+    networks:
+      - rabbiter
+
+networks:
+  rabbiter:
+      driver: bridge
