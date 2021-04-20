@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 
 
@@ -14,7 +15,21 @@ class OccupancyGrid:
         return self.grid.shape
 
     def getOccupy(self, x, y):
-        return self.grid[x, y]
+        return self.grid[y, x]
+
+    def calcProbability(self, log_odd):
+        ex = np.exp(log_odd)
+        return ex / (1 + ex)
+
+    def getProbabilty(self, x, y):
+        log_odd = self.getOccupy(x, y)
+        return self.calcProbability(log_odd)
+
+    def getImage(self, min_treshold, max_treshold):
+        prob = self.calcProbability(self.grid.copy())
+        grid = 255 - (prob * 255).astype(np.uint8)
+        grid = cv2.cvtColor(grid, cv2.COLOR_GRAY2BGR)
+        return grid
 
     def setOccupiedCell(self, x, y):
         if x >= self.grid.shape[0] or y >= self.grid.shape[1]:
@@ -69,7 +84,8 @@ class OccupancyGrid:
                     self.setFreeCell(x_int, y_int)
 
                 y_int = int(
-                    ((y_intf - y_int0) * (x_int - x_int0) / (x_intf - x_int0) + y_int0)
+                    ((y_intf - y_int0) * (x_int - x_int0) /
+                     (x_intf - x_int0) + y_int0)
                 )
                 if (
                     0 <= x_int < self.grid.shape[0]

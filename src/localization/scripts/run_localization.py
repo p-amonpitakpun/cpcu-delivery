@@ -120,12 +120,10 @@ class LocalizationNode():
     def scanner_callback(self, msg):
         self.mutex.acquire()
         now = datetime.now()
-        # print('scanner', len(msg.data), now)
         self.scanner_buffer = []
         n = len(msg.data)
         for i in range(n // 3):
             point = list(msg.data[3 * i: 3 * (i + 1)])
-            # point[2] *= -1
             self.scanner_buffer.append(point)
         self.scanner_last_update = now
         self.mutex.release()

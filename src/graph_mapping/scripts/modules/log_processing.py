@@ -13,6 +13,7 @@ SLAM = {
     'icp': ICPSLAM
 }
 
+
 def process_data(slam, odom_data, scanner_data, last_odom):
 
     new_scan = np.array(scanner_data)[:, 1: 3]
@@ -28,7 +29,7 @@ def process_data(slam, odom_data, scanner_data, last_odom):
         theta = odom_data[2]
         dtheta = (theta - last_odom[2])
 
-        transform[1] = - v_ * np.sin(theta)
+        transform[1] = v_ * np.sin(theta)
         transform[0] = v_ * np.cos(theta)
         transform[2] = dtheta
 
@@ -37,13 +38,16 @@ def process_data(slam, odom_data, scanner_data, last_odom):
     return slam, odom_data.copy()
 
 
-def create_OccupancyGrid(slam, name=''):
-    size = 500
-    min_scanner = 4
+def create_OccupancyGrid(slam, name='', size=500):
+    min_scanner = 20
     resolution = min_scanner * 2 / size
 
     occupancy_grid = OccupancyGrid(
-        shape=(size, size), resolution=resolution, logOdd_occ=0.9, logOdd_free=0.7)
+        shape=(size, size),
+        resolution=resolution,
+        logOdd_occ=0.9,
+        logOdd_free=0.7
+    )
     occupancy_grid.min_treshold = -50
     occupancy_grid.max_treshold = 50
     offset = size / 2 * resolution
@@ -63,19 +67,16 @@ def create_OccupancyGrid(slam, name=''):
             P = v.laser_scanner_data
 
             for p in P:
-                p = np.dot(p, R) + T.T
+                p = np.dot(p, R.T) + T.T
                 p = p.reshape((2,))
                 occupancy_grid.updateOccupy(
                     (X[0] + offset, X[1] + offset), (p[0] + offset, p[1] + offset))
 
-            occupancy_range = occupancy_grid.max_treshold - occupancy_grid.min_treshold
-            grid = (
-                (occupancy_grid.grid - occupancy_grid.min_treshold) /
-                occupancy_range * 255
-            ).astype(np.uint8)
-            grid = 255 - cv2.cvtColor(grid, cv2.COLOR_GRAY2RGB)
-            grid = cv2.circle(grid, (int(
-                X[0] // resolution) + size // 2, size // 2 + int(X[1] // resolution)), 2, (0, 0, 255), -1)
+            grid = occupancy_grid.getImage(
+                occupancy_grid.min_treshold, occupancy_grid.max_treshold)
+            center = (int(X[0] // resolution) + size // 2,
+                      size // 2 - int(X[1] // resolution))
+            grid = cv2.circle(grid, center, 2, (0, 0, 255), -1)
             cv2.imshow(name, grid)
             key = cv2.waitKey(1)
             if key > -1:
@@ -92,7 +93,7 @@ def create_OccupancyGrid(slam, name=''):
     return grid, occupancy_grid
 
 
-def compute(log, slam_type='graph', optimized=True, name='', run_graph=True, progress=True):
+def compute(log, slam_type='graph', optimized=True, name='', run_graph=True, size=500, progress=True):
 
     print(f'computing {slam_type}SLAM...')
     slam = SLAM[slam_type](optimized=optimized)
@@ -111,10 +112,9 @@ def compute(log, slam_type='graph', optimized=True, name='', run_graph=True, pro
             slam, last_odom = process_data(
                 slam, data['odom'], data['scanner'], last_odom)
 
-
     if run_graph:
         print('creating Occupancy Grid...')
-        grid, occupancy_grid = create_OccupancyGrid(slam, name=name)
+        grid, occupancy_grid = create_OccupancyGrid(slam, name=name, size=size)
     else:
         grid = None
         occupancy_grid = None
