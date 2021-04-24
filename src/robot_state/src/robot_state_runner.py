@@ -55,7 +55,7 @@ def webCommand_callback(ch, method, properties, body):
 
 def rabbitmq_thread():
     # RabbitMQ 
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    connection = pika.BlockingConnection(pika.URLParameters("amqp://admin:password@localhost:9998"))
     channel = connection.channel()
     channel.queue_declare(queue='webCommand')
     channel.basic_consume(queue='webCommand', on_message_callback=webCommand_callback, auto_ack=True)
