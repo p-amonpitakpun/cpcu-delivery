@@ -32,8 +32,10 @@
     <h1>Image from camera: </h1>
     <img width="100" height="100" id="camera"></img>
     <h1>GUI Command: </h1>
-    <p><b>Target Room:</b></p>
-    <input type="number" id="room_number" />
+    <p><b>Target X:</b></p>
+    <input type="number" id="room_numberx" />
+    <p><b>Target Y:</b></p>
+    <input type="number" id="room_numbery" />
     <br />
     <button id="start">Start Delivery</button><br/>
     <button id="pause">Pause Delivery</button>
@@ -203,9 +205,10 @@
             });
 
             $("#start").click((event)=>{
-                var number = parseInt($('#room_number').val());
+                var numberx = parseInt($('#room_numberx').val());
+                var numbery = parseInt($('#room_numbery').val());
                 socket.emit('moveCommand',{
-                    destination: [Math.floor(number/100), number % 100]
+                    destination: [numberx, numbery]
                 });
             });
 
