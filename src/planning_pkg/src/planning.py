@@ -73,10 +73,7 @@ class Planner:
     def calculate_shortest_path(self):
         if not self.current_position or not self.goal:
             return False
-        print('calculating')
-        print(self.graph[(250,250)])
-        print(self.graph[(251,250)])
-        print(self.graph[(251,251)])
+        print('calculating...')
         queue = deque()
         backtracker = {}
         queue.append(self.current_position)
@@ -93,7 +90,7 @@ class Planner:
                             self.path.appendleft(backtrack)
                             backtrack = backtracker[backtrack]
                         self.path.appendleft(backtrack)
-                        print(self.path)
+                        print('Path : ', self.path)
                         return True
         self.path = deque()
         return False
@@ -125,7 +122,7 @@ class DifferentialDrive:
             planner.current_position+(planner.start_direction,))
         self.robot_motion[len(self.robot_motion)-1] = (self.robot_motion[len(self.robot_motion)-1][0], 
         self.robot_motion[len(self.robot_motion)-1][1], planner.final_direction)
-        print(self.robot_motion)
+        print('Motion : ', self.robot_motion)
 
     def get_motor_speed(self, pos_x: float, pos_y: float, direction: float, time: float, obstacle: bool = False):
         self.current_position = (pos_x, pos_y, direction)
@@ -172,7 +169,7 @@ class DifferentialDrive:
             return (DEFAULT_SPEED + omega*self.dimension/2, DEFAULT_SPEED - omega*self.dimension/2)
         except IndexError:
             print('Done!')
-            return (-0.0001, -0.0001)
+            return (0, 0)
 
 memory = []
 obstacle = False
@@ -191,7 +188,7 @@ def publish():
             message = Float32MultiArray(data=message)
             publisher.publish(message)
         else:
-            message = Float32MultiArray(data=[1, 1])
+            message = Float32MultiArray(data=[0, 0])
             publisher.publish(message)
         rate.sleep()
 
