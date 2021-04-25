@@ -86,7 +86,6 @@ def scanner_callback(msg):
     scanner_last_update = now
     mutex.release()
 
-
 def thread_function():
     global is_running, delay_ms, mutex, last_update
     global mapping_log
@@ -148,9 +147,8 @@ def main():
 
     rospy.init_node('SLAM', anonymous=True)
 
-    odom_sub = rospy.Subscriber('odomData', Float32MultiArray, odom_callback)
-    scanner_sub = rospy.Subscriber(
-        'scannerData', Float32MultiArray, scanner_callback)
+    rospy.Subscriber('odomData', Float32MultiArray, odom_callback)
+    rospy.Subscriber('scannerData', Float32MultiArray, scanner_callback)
 
     thread = Thread(target=thread_function)
 
@@ -189,53 +187,6 @@ def main():
                     print('  Mapping: saved at', filepath)
 
             sys.exit()
-
-        elif ans == 'r':
-            LOG_DIR = PACKAGE_PATH + LOG_PATH + '/mapping_log-*.json'
-            logs = glob.glob(LOG_DIR)
-            print('  Mapping: compute from log (found {})'.format(len(logs)))
-            for i, logpath in enumerate(logs):
-                print('  [{}]'.format(i), logpath)
-
-            if len(logs) == 1:
-                ans2 = 0
-            else:
-                ans2 = input('  answer: ').strip()
-            try:
-                i = int(ans2)
-
-                if i < len(logs):
-                    log = None
-                    with open(logs[i], 'r') as fp:
-                        log = json.load(fp)
-                    graph, occ, gu = compute(log, optimized=False)
-                    # graph_optimized, go = compute(log, optimized=True)
-
-                # u_vertices = [v.point for v in graph.getVertices()]
-                # p = list(zip(*u_vertices))
-                # plt.scatter(p[0], p[1], s=1, c='c', label='unoptimized')
-
-                # o_vertices = [v.point for v in graph_optimized.getVertices()]
-                # q = list(zip(*o_vertices))
-                # plt.scatter(q[0], q[1], s=1, c='m', label='optimized')
-
-                # try:
-                #     r = list(zip(*log['valid']))
-                #     plt.scatter(r[0], r[1], s=1, c='k', label='validation')
-                # except:
-                #     print('  Mapping: cannot show validation')
-
-                cv2.imshow('grid', gu)
-                plt.legend()
-                plt.xlim(-3, 3)
-                plt.ylim(-3, 3)
-                # print(gu)
-                print('  close the plot to continue...')
-                # plt.show()
-
-            except ValueError as e:
-                print('  Error: ', e)
-                traceback.print_exc()
 
         elif ans == 'e':
             is_running = False

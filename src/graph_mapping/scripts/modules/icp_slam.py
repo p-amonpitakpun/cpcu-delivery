@@ -82,12 +82,12 @@ class ICPSLAM:
                     transform = edge.getTransform(self.vertices)
 
                     # get z, info_matrix from the measurement
-                    z_ij, info_matrix_ij = self.getMeasurement(
-                        laser_scanner_data_i, laser_scanner_data_j, transform)
+                    # z_ij, info_matrix_ij = self.getMeasurement(
+                    #     laser_scanner_data_i, laser_scanner_data_j, transform)
 
                     # assign z, info_matrix to the edge
-                    edge.z = z_ij
-                    edge.info_matrix = info_matrix_ij
+                    # edge.z = z_ij
+                    # edge.info_matrix = info_matrix_ij
 
                 if self.optimized:
                     # TODO ICP optimization
@@ -138,7 +138,16 @@ class ICPSLAM:
             v_i = vertices[edge.from_x]
             v_j = vertices[edge.to_x]
 
-            v_j.point = edge.z
+            P_i = v_i.laser_scanner_data.copy()
+            P_j = v_j.laser_scanner_data.copy()
+        
+            R, T = tr_icp(P_i, P_j, N_iter=20)
+
+            dtheta = np.arctan2(R[1, 0], R[0, 0])
+            dx = T[0]
+            dy = T[1]
+
+            v_j.point += [dx, dy, dtheta]
 
     def getImage(self):
         return None

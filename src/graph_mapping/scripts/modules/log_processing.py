@@ -21,7 +21,7 @@ def process_data(slam, odom_data, scanner_data, last_odom):
     dl = odom_data[3]
     dr = odom_data[4]
 
-    c = 55.5
+    c = 0.5
     v_ = c * (dl + dr) / 2
 
     transform = [0, 0, 0]
@@ -29,8 +29,8 @@ def process_data(slam, odom_data, scanner_data, last_odom):
         theta = odom_data[2]
         dtheta = (theta - last_odom[2])
 
-        transform[1] = v_ * np.sin(theta)
         transform[0] = v_ * np.cos(theta)
+        transform[1] = v_ * np.sin(theta)
         transform[2] = dtheta
 
     slam.mapping(np.array(transform), new_scan)
@@ -50,7 +50,9 @@ def create_OccupancyGrid(slam, name='', size=500):
     )
     occupancy_grid.min_treshold = -50
     occupancy_grid.max_treshold = 50
-    offset = size / 2 * resolution
+    offset = min_scanner
+
+    plot = np.zeros((500, 500, 3), dtype=np.uint8)
 
     V = slam.getVertices()
     with ProgressBar(max_value=len(V)) as bar:
@@ -66,29 +68,44 @@ def create_OccupancyGrid(slam, name='', size=500):
 
             P = v.laser_scanner_data
 
+            all_plot = []
+
             for p in P:
                 p = np.dot(p, R.T) + T.T
                 p = p.reshape((2,))
                 occupancy_grid.updateOccupy(
                     (X[0] + offset, X[1] + offset), (p[0] + offset, p[1] + offset))
+                plot = cv2.circle(plot, (int(size // 2 + p[1] // resolution), int(size // 2 - p[0] // resolution)), 1, (0, 0, 255))
+            all_plot.append(plot)
 
             grid = occupancy_grid.getImage(
                 occupancy_grid.min_treshold, occupancy_grid.max_treshold)
-            center = (int(X[0] // resolution) + size // 2,
-                      size // 2 - int(X[1] // resolution))
+            center = (int(X[0] // resolution) + (size // 2),
+                      (size // 2) - int(X[1] // resolution))
             grid = cv2.circle(grid, center, 2, (0, 0, 255), -1)
-            cv2.imshow(name, grid)
+            # cv2.imshow(name, grid)
+            all_plot.append(grid)
+
+            scan = np.zeros((500, 500, 3), dtype=np.uint8)
+            scale = 50
+            scan = cv2.circle(scan, (250, 250), 5, (100, 250, 50), -1)
+            for p in P:
+                scan = cv2.circle(scan, (int(250 - p[1] * scale), int(250 - p[0] * scale)), 2, (0, 125, 255))
+            # cv2.imshow('scan', scan)
+            all_plot.append(scan)
+
+            img = cv2.hconcat(all_plot)
+            img = cv2.putText(img, f'{i}', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (100, 100, 100))
+            cv2.imshow('all plot', img)
+
             key = cv2.waitKey(1)
             if key > -1:
                 break
 
             bar.update(i)
 
-    occupancy_range = occupancy_grid.max_treshold - occupancy_grid.min_treshold
-    grid = (
-        (occupancy_grid.grid - occupancy_grid.min_treshold) / occupancy_range * 255
-    ).astype(np.uint8)
-    grid = 255 - cv2.cvtColor(grid, cv2.COLOR_GRAY2RGB)
+    grid = occupancy_grid.getImage(
+        occupancy_grid.min_treshold, occupancy_grid.max_treshold)
 
     return grid, occupancy_grid
 
