@@ -39,15 +39,15 @@ def main():
                 log = None
                 with open(logs[i], 'r') as fp:
                     log = json.load(fp)
-                graph_name = 'map {}'.format(
-                    datetime.fromtimestamp(log['starttime']))
+                graph_name = 'map_{}'.format(str(log['starttime']))
                 graph, grid, g = compute(
-                    log, slam_type='graph', optimized=False, name=graph_name, size=1000)
-                # graph_optimized, g = compute(log, optimized=True)
+                    log, slam_type='icp', optimized=False, name=graph_name, run_graph=True, size=500)
+            u_vertices = [v.point for v in graph.getVertices()]
+            p = np.array(u_vertices).T
 
-            # u_vertices = [v.point for v in graph.getVertices()]
-            # p = list(zip(*u_vertices))
-            # plt.scatter(p[0], p[1], s=1, c='c', label='unoptimized')
+            _, ax = plt.subplots()
+            ax.set_aspect(1)
+            ax.scatter(p[0, :], p[1, :], s=5, c='c', label=graph_name)
 
             # o_vertices = [v.point for v in graph_optimized.getVertices()]
             # q = list(zip(*o_vertices))
@@ -58,34 +58,33 @@ def main():
             #     plt.scatter(r[0], r[1], s=1, c='k', label='validation')
             # except:
             #     print('  Mapping: cannot show validation')
+            plt.legend()
 
-            save_path = IMAGE_DIR + graph_name + '.png'
-            print('saved to ', save_path)
-            cv2.imwrite(save_path, g)
-            cv2.imshow(graph_name, g)
-            cv2.waitKey(-1)
-            # plt.legend()
-            # plt.xlim(-3, 3)
-            # plt.ylim(-3, 3)
-            # print(gu)
-            # print('close the plot to continue...')
-            # plt.show()
+            if g is not None:
+                save_path = IMAGE_DIR + graph_name + '.png'
+                print('saved to ', save_path)
+                cv2.imwrite(save_path, g)
+                cv2.imshow(graph_name, g)
+                cv2.waitKey(-1)
+            print('close the plot to continue...')
+            plt.show()
 
-            occ_config = {
-                'resolution': grid.resolution,
-                'logOdd_occ': grid.logOdd_occ,
-                'logOdd_free': grid.logOdd_free,
-                'min_treshold': grid.min_treshold,
-                'max_treshold': grid.max_treshold,
-            }
-            occ_config_path = SAVE_DIR + graph_name + '.config.json'
-            with open(occ_config_path, 'w') as fp:
-                json.dump(occ_config, fp, indent=2)
-            print('saved occ config at', occ_config_path)
+            if grid is not None:
+                occ_config = {
+                    'resolution': grid.resolution,
+                    'logOdd_occ': grid.logOdd_occ,
+                    'logOdd_free': grid.logOdd_free,
+                    'min_treshold': grid.min_treshold,
+                    'max_treshold': grid.max_treshold,
+                }
+                occ_config_path = SAVE_DIR + graph_name + '.config.json'
+                with open(occ_config_path, 'w') as fp:
+                    json.dump(occ_config, fp, indent=2)
+                print('saved occ config at', occ_config_path)
 
-            occ_grid_path = SAVE_DIR + graph_name + '.grid.npy'
-            np.save(occ_grid_path, grid.grid)
-            print('saved occ grid at', occ_grid_path)
+                occ_grid_path = SAVE_DIR + graph_name + '.grid.npy'
+                np.save(occ_grid_path, grid.grid)
+                print('saved occ grid at', occ_grid_path)
 
         except ValueError as e:
             print('Error: ', e)

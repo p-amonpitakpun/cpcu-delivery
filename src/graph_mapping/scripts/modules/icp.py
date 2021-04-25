@@ -1,5 +1,7 @@
 import numpy as np
 
+from sklearn.neighbors import NearestNeighbors
+
 
 def euclidian_distant(point1, point2):
     assert len(point1) == len(point2)
@@ -7,20 +9,24 @@ def euclidian_distant(point1, point2):
 
 
 def closest_points(target, ref, dup=False):
-    M_ref = ref.copy()
+    # M_ref = ref.copy()
 
-    C = []
-    for p in target:
-        index = np.argmin([euclidian_distant(p, m) for m in M_ref])
-        C += [M_ref[index]]
+    # C = []
+    # for p in target:
+    #     index = np.argmin([euclidian_distant(p, m) for m in M_ref])
+    #     C += [M_ref[index]]
 
-        if not dup:
-            mask = np.ones(len(M_ref), dtype=bool)
-            mask[index] = False
-            M_ref = M_ref[mask]
-    C = np.array(C)
-    np.testing.assert_array_equal(C.shape, target.shape)
-    return C
+    #     if not dup:
+    #         mask = np.ones(len(M_ref), dtype=bool)
+    #         mask[index] = False
+    #         M_ref = M_ref[mask]
+    # C = np.array(C)
+    # np.testing.assert_array_equal(C.shape, target.shape)
+    # return C
+    nbrs = NearestNeighbors(n_neighbors=1, algorithm='auto').fit(ref)
+    _, idx = nbrs.kneighbors(target)
+    ret = ref[idx.T][0]
+    return ret
 
 
 def icp(ref, target, N_iter=10):
@@ -32,7 +38,7 @@ def icp(ref, target, N_iter=10):
     T = np.array([0, 0])
     prev_err = None
 
-    for i in range(N_iter):
+    for _ in range(N_iter):
         # print(f'# {i}')
         np.random.shuffle(P)
         X = closest_points(P, ref)
@@ -83,7 +89,7 @@ def tr_icp(ref, target, N=-1, N_iter=100):
     T = np.array([0, 0])
     S = np.inf
 
-    for i in range(N_iter):
+    for _ in range(N_iter):
         # np.random.shuffle(P)
         x = closest_points(P, ref, dup=True)
         np.testing.assert_array_equal(x.shape, P.shape)
@@ -93,7 +99,7 @@ def tr_icp(ref, target, N=-1, N_iter=100):
         s_d = sum([euclidian_distant(p, x)**2 for p, x in pairs])
 
         # print('S_LTS =', S, '\tS\'_LTS =', s_d)
-        if s_d < S:
+        if s_d <= S:
             S = s_d
         else:
             return R, T

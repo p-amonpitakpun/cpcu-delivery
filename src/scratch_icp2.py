@@ -53,30 +53,31 @@ if len(paths) > 0:
         # P_i = P_i @ R.T + T.T
 
         
-        R, T = tr_icp(P_i, P_j, N_iter=75)
+        R, T = tr_icp(P_i, P_j, N_iter=20)
         # print(R)
         # print(T)
 
-        dtheta = np.arctan2(R[0, 1], R[0, 0])
+        dtheta = np.arctan2(R[1, 0], R[0, 0])
         dx = T[0]
         dy = T[1]
 
         z = np.array([[dx, dy, dtheta]]).T
-        # print(z.T)
+        print(z.T)
         
-        R = np.array([[np.cos(dtheta), np.sin(dtheta)],
-                        [- np.sin(dtheta), np.cos(dtheta)]])
+        R = np.array([[np.cos(dtheta), - np.sin(dtheta)],
+                        [np.sin(dtheta), np.cos(dtheta)]])
         T = np.array([[dx], [dy]])
 
         Q = P_j @ R.T + T.T
     
 
-        plt.scatter(P_i.T[0], P_i.T[1], s=1, c='c', label=f'scanner {i}')
-        plt.scatter(P_j.T[0], P_j.T[1], s=1, c='m', label=f'scanner {j}')
-        plt.scatter(Q.T[0], Q.T[1], s=1, c='k', label=f'scanner {i} (new)')
+        _, ax = plt.subplots()
+        ax.set_aspect(1)
 
-        plt.xlim(-3, 3)
-        plt.ylim(-3, 3)
+        ax.scatter(P_i.T[0], P_i.T[1], s=1, c='c', label=f'scanner {i}')
+        ax.scatter(P_j.T[0], P_j.T[1], s=1, c='m', label=f'scanner {j}')
+        ax.scatter(Q.T[0], Q.T[1], s=1, c='k', label=f'scanner {j} (new)')
+
         plt.legend()
         plt.show()
 
