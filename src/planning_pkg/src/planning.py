@@ -127,7 +127,7 @@ class DifferentialDrive:
     def get_motor_speed(self, pos_x: float, pos_y: float, direction: float, time: float, obstacle: bool = False):
         self.current_position = (pos_x, pos_y, direction)
         if obstacle:
-            return (-0.0001, -0.0001)
+            return (0, 0)
         try:
             current_idx = 0
             for idx, (x, y, z) in enumerate(self.robot_motion):
@@ -206,8 +206,8 @@ def create_map(navigation, map):
         if sum(map[i][499]) == sum(map[i+1][499]) and sum(map[i][499]) > 128*3:
             navigation.add_path((499, i), (499, i+1))
             
-    navigation.del_node((250,250))
-    navigation.add_path((250,250), (251, 250))
+    navigation.del_node((249,250))
+    navigation.add_path((249,250), (250, 250))
 
 def robot_state_callback(req):
     global memory
@@ -252,6 +252,19 @@ def robot_state_callback(req):
                 obstacle = False
         else:
             create_map(navigation, commands['map'])
+        if memory:
+            state = 2
+        elif diffdrive.robot_motion:
+            state = 1
+        else:
+            state = 0
+        target = list(navigation.goal)
+        path = list(navigation.path)
+        response = {
+            "state":state,
+            "target":target,
+            "path":path
+        }
     return json.dumps(response)
 
 def main():
