@@ -31,6 +31,12 @@ class OccupancyGrid:
         grid = cv2.cvtColor(grid, cv2.COLOR_GRAY2BGR)
         return grid
 
+    def getImage2(self, treshold):
+        prob = self.calcProbability(self.grid.copy())
+        grid = (255 - (prob > treshold) * 255).astype(np.uint8)
+        grid = cv2.cvtColor(grid, cv2.COLOR_GRAY2BGR)
+        return grid
+
     def setOccupiedCell(self, x, y):
         if x >= self.grid.shape[0] or y >= self.grid.shape[1]:
             raise Exception(

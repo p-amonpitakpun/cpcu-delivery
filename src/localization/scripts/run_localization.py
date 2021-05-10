@@ -143,7 +143,7 @@ class LocalizationNode():
         dl = odom_data[3]
         dr = odom_data[4]
 
-        c = 55.5
+        c = 5.55
         v_ = c * (dl + dr) / 2
 
         transform = [0, 0, 0]
@@ -152,7 +152,7 @@ class LocalizationNode():
             dtheta = (theta - self.last_odom[2])
 
             transform[0] = v_ * np.cos(theta)
-            transform[1] = v_ * np.sin(theta)
+            transform[1] = - v_ * np.sin(theta)
             transform[2] = dtheta
 
         return np.array(transform), new_scan, odom_data.copy()

@@ -37,6 +37,7 @@ def main():
 
             if i < len(logs):
                 
+                real = input('real ? (y / n): ').strip() == 'y'
                 optimized = input('optimized ? (y / n): ').strip() == 'y'
 
                 log = None
@@ -44,7 +45,7 @@ def main():
                     log = json.load(fp)
                 graph_name = 'map_{}'.format(str(log['starttime']))
                 graph, grid, g = compute(
-                    log, slam_type='icp', optimized=optimized, name=graph_name, run_graph=True, size=500)
+                    log, slam_type='real' if real else 'icp', optimized=optimized, name=graph_name, run_graph=True, size=500, real=real)
             u_vertices = [v.point for v in graph.getVertices()]
             p = np.array(u_vertices).T
 

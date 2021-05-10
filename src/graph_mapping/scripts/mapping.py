@@ -29,13 +29,13 @@ odom_msg_prev = [0, 0, 0, 0, 0]
 odom_last_update = datetime.now()
 odom_init = False
 
-realpos_buffer = [-1, -1]
+realpos_buffer = [-1, -1, -1]
 got_realpos = False
 
 scanner_buffer = [0, 0, 0, 0]
 scanner_last_update = datetime.now()
 
-delay_ms = 200
+delay_ms = 100
 mapping_log = {
     'starttime': None,
     'delay_ms': delay_ms,
@@ -70,6 +70,7 @@ def odom_callback(msg):
     if len(odom_msg) > 5:
         realpos_buffer[0] = odom_msg[5] / 100
         realpos_buffer[1] = odom_msg[6] / 100
+        realpos_buffer[2] = odom_msg[2] * np.pi / 180
         got_realpos = True
 
 
@@ -111,7 +112,8 @@ def thread_function():
                     data = {
                         'timestamp': datetime.timestamp(now),
                         'odom': odom_buffer.copy(),
-                        'scanner': scanner_buffer.copy()
+                        'realpos': realpos_buffer.copy(),
+                        'scanner': scanner_buffer.copy(),
                     }
                     valid_data.append(realpos_buffer.copy())
                     print('  Thread: append data ', data['timestamp'])

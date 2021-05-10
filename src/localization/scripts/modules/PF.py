@@ -79,7 +79,7 @@ class ParticleFilter():
         return self.cvtSim2Grid(self.particle)
 
     def getMap(self):
-        return self.occGrid.getImage(-50, 50)
+        return self.occGrid.getImage2(0.5)
 
     def getImage(self):
         image_list = list(self.images.items())
@@ -96,7 +96,7 @@ class ParticleFilter():
     def sample(self):
 
         if self.particles is None:
-            samples = np.random.uniform(low=np.array([-2, -3]), high=np.array([2, 0]), size=(self.N, 2))
+            samples = np.random.uniform(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), size=(self.N, 2))
             new_samples = []
             for s in samples:
                 new_samples.append([s[0], s[1], 0])
@@ -184,8 +184,8 @@ class ParticleFilter():
                 pass
             else:
                 img = cv2.circle(img, tuple(pose), 2, (0, 255, 0), -1)
-                for point in scan:
-                    img = cv2.circle(img, tuple(point), 1, (70, 70, 105), -1)
+                # for point in scan:
+                #     img = cv2.circle(img, tuple(point), 1, (70, 70, 105), -1)
 
         idx = np.argmax(norm_scores)
         img = cv2.circle(img, tuple(particle_list[idx][0]), 5, (255, 50, 0), -1)
