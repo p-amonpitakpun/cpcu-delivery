@@ -35,7 +35,7 @@ got_realpos = False
 scanner_buffer = [0, 0, 0, 0]
 scanner_last_update = datetime.now()
 
-delay_ms = 100
+delay_ms = 200
 mapping_log = {
     'starttime': None,
     'delay_ms': delay_ms,

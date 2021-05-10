@@ -36,12 +36,15 @@ def main():
             i = int(ans2)
 
             if i < len(logs):
+                
+                optimized = input('optimized ? (y / n): ').strip() == 'y'
+
                 log = None
                 with open(logs[i], 'r') as fp:
                     log = json.load(fp)
                 graph_name = 'map_{}'.format(str(log['starttime']))
                 graph, grid, g = compute(
-                    log, slam_type='icp', optimized=False, name=graph_name, run_graph=True, size=500)
+                    log, slam_type='icp', optimized=optimized, name=graph_name, run_graph=True, size=500)
             u_vertices = [v.point for v in graph.getVertices()]
             p = np.array(u_vertices).T
 

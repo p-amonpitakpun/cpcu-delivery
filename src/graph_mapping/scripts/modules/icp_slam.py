@@ -138,16 +138,25 @@ class ICPSLAM:
             v_i = vertices[edge.from_x]
             v_j = vertices[edge.to_x]
 
+            dx, dy, dtheta = v_j.point - v_i.point
+
             P_i = v_i.laser_scanner_data.copy()
             P_j = v_j.laser_scanner_data.copy()
+
         
-            R, T = tr_icp(P_i, P_j, N_iter=20)
+            R0 = np.array([[np.cos(dtheta), - np.sin(dtheta)],
+                            [np.sin(dtheta), np.cos(dtheta)]])
+            T0 = np.array([[dx], [dy]])
+
+            Q = P_i @ R0 + T0.T
+        
+            R, T = tr_icp(Q, P_j, N_iter=20)
 
             dtheta = np.arctan2(R[1, 0], R[0, 0])
             dx = T[0]
             dy = T[1]
 
-            v_j.point += [dx, dy, dtheta]
+            v_j.point += np.array([dx * 0.1, dy * 0.1, dtheta * 0.01])
 
     def getImage(self):
         return None
