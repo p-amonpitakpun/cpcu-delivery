@@ -60,6 +60,9 @@ class ParticleFilter():
         # select a particle with maximum score
         selected_particle = new_particles[scores.argmax()]
         dx = selected_particle - self.particle
+
+        # self.updateOcc(self.particle, laser_scanner_data)
+
         self.particle_velocity = dx / dt_s if dt_s > 0 else self.particle_velocity
         self.particle = selected_particle
         self.last_update = now
@@ -96,7 +99,8 @@ class ParticleFilter():
     def sample(self):
 
         if self.particles is None:
-            samples = np.random.uniform(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), size=(self.N, 2))
+            samples = np.random.uniform(low=np.array(
+                [-0.5, -0.5]), high=np.array([0.5, 0.5]), size=(self.N, 2))
             new_samples = []
             for s in samples:
                 new_samples.append([s[0], s[1], 0])
@@ -110,7 +114,8 @@ class ParticleFilter():
             return np.array(new_samples)
 
         if len(self.scores) != len(self.particles):
-            raise Exception(f'Error: the length of scores ({len(self.scores)}) is not equal to the number of particles ({len(self.particles)}).')
+            raise Exception(
+                f'Error: the length of scores ({len(self.scores)}) is not equal to the number of particles ({len(self.particles)}).')
 
         new_particles = self.rng.choice(
             self.particles, size=self.M, p=self.scores)
@@ -135,7 +140,7 @@ class ParticleFilter():
         y_shape, x_shape = self.occGrid.getShape()
         x_offset, y_offset = x_shape // 2, y_shape // 2
 
-        return [int(sim_pose[0] // reso + x_offset), int( - sim_pose[1] // reso + y_offset)]
+        return [int(sim_pose[0] // reso + x_offset), int(- sim_pose[1] // reso + y_offset)]
 
     def get_scores(self, particles, laser_scanner_data):
         scores_length = len(particles)
@@ -188,13 +193,31 @@ class ParticleFilter():
                 #     img = cv2.circle(img, tuple(point), 1, (70, 70, 105), -1)
 
         idx = np.argmax(norm_scores)
-        img = cv2.circle(img, tuple(particle_list[idx][0]), 5, (255, 50, 0), -1)
+        img = cv2.circle(img, tuple(
+            particle_list[idx][0]), 5, (255, 50, 0), -1)
         for point in particle_list[idx][1]:
             img = cv2.circle(img, tuple(point), 2, (0, 0, 255), -1)
 
         for point in self.particle_hist:
-            img = cv2.circle(img, tuple(self.cvtSim2Grid(point)), 2, (255, 0, 0), -1)
+            img = cv2.circle(img, tuple(
+                self.cvtSim2Grid(point)), 2, (255, 0, 0), -1)
 
         self.images['particles'] = img
 
         return np.array(norm_scores)
+
+    def updateOcc(self, particle, laser_scanner_data):
+        offset = 20
+
+        X = particle
+
+        psi = particle[2]
+        R = np.array([[np.cos(psi), - np.sin(psi)],
+                      [np.sin(psi), np.cos(psi)]])
+        T = particle[: 2].reshape((2, 1))
+
+        for p in laser_scanner_data:
+            p = np.dot(p, R.T) + T.T
+            p = p.reshape((2,))
+            self.occGrid.updateOccupy(
+                (X[0] + offset, - X[1] + offset), (p[0] + offset, - p[1] + offset))
