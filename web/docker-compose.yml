@@ -20,16 +20,23 @@ services:
     restart: "unless-stopped"
     env_file:
       - mongo.env
+    networks:
+      - mongoer
   web:
     build: web
     image: "web"
     ports:
-      - "8080:3000"
+      - "8080:3001"
     env_file:
       - web.env
     networks:
       - rabbiter
+      - mongoer
+    depends_on:
+      - rabbit
 
 networks:
   rabbiter:
       driver: bridge
+  mongoer:
+    driver: bridge

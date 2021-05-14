@@ -1,14 +1,28 @@
 const amqp = require('amqplib/callback_api');
 const app = require('express')();
 const http = require('http').Server(app);
-const io = require('socket.io')(http);
+const io = require('socket.io')(http,{
+    cors: {
+        origin: '*',
+    }
+});
 const speech = require('@google-cloud/speech');
 const client = new speech.SpeechClient();
 const fs = require('fs');
+const mongoose = require('mongoose');
+const express = require('express');
+const User = require('./models/User');
+const Util = require('./util');
+const bcrypt = require('bcrypt');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+app.use(bodyParser.json());
+app.use(cors());
 
+RABBIT_URL = "amqp://admin:password@rabbit:5672"
 
-
-amqp.connect('amqp://admin:password@rabbit:5672', function (error0, connection) {
+mongoose.connect('mongodb://admin:password@mongo:27017/senior?authSource=admin', {useNewUrlParser: true, useUnifiedTopology: true});
+amqp.connect(RABBIT_URL, function (error0, connection) {
     if (error0) {
         throw error0;
     }
@@ -28,7 +42,6 @@ amqp.connect('amqp://admin:password@rabbit:5672', function (error0, connection) 
 
         channel.consume(queue_robotState, function (msg) {
             var json = JSON.parse(msg.content.toString());
-            console.log(json);
             io.emit(queue_robotState, json);
         }, {
             noAck: true
@@ -71,7 +84,7 @@ amqp.connect('amqp://admin:password@rabbit:5672', function (error0, connection) 
 });
 
 const sendRabbit = (queue, json_msg) => {
-    amqp.connect('amqp://admin:password@rabbit:5672', function(error0, connection) {
+    amqp.connect(RABBIT_URL, function(error0, connection) {
     if (error0) {
         throw error0;
     }
@@ -92,8 +105,39 @@ const sendRabbit = (queue, json_msg) => {
     });
 }
 
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
+app.get('/api/whoami', Util.authmiddleware, async(req, res) => {
+    try {
+        return res.json({
+            username: req.user
+        })
+    } catch(err) {
+        return res.sendStatus(401);
+    }
+});
+
+app.post('/api/auth', async(req, res) => {
+    let username = req.body.username;
+    let password = req.body.password;
+    let user = await User.findOne({username});
+    if(!user)
+        return res.sendStatus(401);
+    try {
+        let passwordcheck = await bcrypt.compare(password, user.password);
+        if(!passwordcheck)
+            return res.sendStatus(401);
+    } catch (err) {
+        return res.sendStatus(401);
+    }
+    let token = Util.getToken(username);
+    return res.json({
+        token
+    });
+});
+
+app.use('/static', express.static('build/static'));
+
+app.get('*', (req, res) => {
+    res.sendFile(__dirname + '/build/index.html');
 });
 
 
@@ -116,27 +160,46 @@ const request = {
     interimResults: true,
   };
   
-io.on('connection', (socket) => {
+io.on('connection', async(socket) => {
 
     var recognizeStream;
+    var authenticated = false;
+    var username = null;
 
+    var token = socket.handshake.query.token;
+    var verified = await Util.verifyJWT(token);
+    if(verified) {
+        authenticated = true;
+        username = verified.username;
+        console.log('a user connected:', username);
+        socket.emit('authenticated', username);
+    }
+    else {
+        socket.emit('401');
+        socket.disconnect();
+    }
 
-    console.log('a user connected');
     socket.on('disconnect', () => {
         if(recognizeStream)
             recognizeStream.end();
     });
 
     socket.on('audio', (data) => {
+        if(!authenticated)
+            return;
         const aa = new Int16Array(data, 0, data.byteLength / 2);
         recognizeStream.write(aa);
     });
 
     socket.on('stoprec', () => {
+        if(!authenticated)
+            return;
         recognizeStream.end();
     });
 
     socket.on('startnewrec', () => {
+        if(!authenticated)
+            return;
         recognizeStream =  client
         .streamingRecognize(request)
         .on('error', console.error)
@@ -148,6 +211,8 @@ io.on('connection', (socket) => {
     });
 
     socket.on('stopCommand', () => {
+        if(!authenticated)
+            return;
         sendRabbit("webCommand", {
             "type": 1,
             "status": 2           
@@ -155,6 +220,8 @@ io.on('connection', (socket) => {
     });
 
     socket.on('pauseCommand', () => {
+        if(!authenticated)
+            return;
         sendRabbit("webCommand", {
             "type": 1,
             "status": 0           
@@ -162,6 +229,8 @@ io.on('connection', (socket) => {
     });
 
     socket.on('resumeCommand', () => {
+        if(!authenticated)
+            return;
         sendRabbit("webCommand", {
             "type": 1,
             "status": 1           
@@ -169,6 +238,8 @@ io.on('connection', (socket) => {
     });
 
     socket.on('moveCommand', (data) => {
+        if(!authenticated)
+            return;
         sendRabbit("webCommand", {
             "type": 0,
             "goal": data.destination           
@@ -183,6 +254,6 @@ io.on('connection', (socket) => {
     });
 });
 
-http.listen(3000, () => {
-    console.log('listening on *:3000');
+http.listen(3001, () => {
+    console.log('listening on *:3001');
 });

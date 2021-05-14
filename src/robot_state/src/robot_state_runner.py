@@ -7,12 +7,20 @@ import queue
 import rospy
 import threading
 import sys
+import numpy
+import base64
+import io
 from cv_bridge import CvBridge
+from PIL import Image
 
 CV_BRIDGE = CvBridge()
 SET_GOAL = 0
 MOVE = 1
 SET_MAP = 2
+RABBITMQ_CONNECTION_STRING = "amqp://admin:password@localhost:9998"
+
+ROBOT_STATE_WEB_QUEUE = "robotState"
+COMMAND_WEB_QUEUE = "webCommand"
 
 #from sensor_msgs import Image
 from robot_state.srv import Planning, Localization
@@ -53,12 +61,16 @@ def webCommand_callback(ch, method, properties, body):
     command_json = json.loads(body)
     planning_callback(command_json)
 
+def get_rabbitmq_connection_channel():
+    connection = pika.BlockingConnection(pika.URLParameters(RABBITMQ_CONNECTION_STRING))
+    channel = connection.channel()
+    return channel
+
 def rabbitmq_thread():
     # RabbitMQ 
-    connection = pika.BlockingConnection(pika.URLParameters("amqp://admin:password@localhost:9998"))
-    channel = connection.channel()
-    channel.queue_declare(queue='webCommand')
-    channel.basic_consume(queue='webCommand', on_message_callback=webCommand_callback, auto_ack=True)
+    channel = get_rabbitmq_connection_channel()
+    channel.queue_declare(queue=COMMAND_WEB_QUEUE)
+    channel.basic_consume(queue=COMMAND_WEB_QUEUE, on_message_callback=webCommand_callback, auto_ack=True)
     channel.start_consuming()
 
 def main():
@@ -76,6 +88,10 @@ def main():
     occupancy_grid_position = None
     image = None
 
+    # Rabbitmq sending for main thread
+    rabbit_channel = get_rabbitmq_connection_channel()
+    rabbit_channel.queue_declare(queue='webCommand')
+
     while True:
 
         # Localization Data
@@ -88,7 +104,20 @@ def main():
             "occupancy_grid_position": occupancy_grid_position,
             "map": image
         }
-        planning_callback(command)
+        res = planning_callback(command)
+
+        # Send to web
+        map_image = Image.fromarray(numpy.array(image).astype(numpy.uint8))
+        img_byte_arr = io.BytesIO()
+        map_image.save(img_byte_arr, format='PNG')
+        command["map"] = base64.b64encode(img_byte_arr.getvalue()).decode("utf-8") 
+        command["planning_state"] = json.loads(res) if res else {}
+
+        rabbit_channel.basic_publish(
+            exchange="",
+            routing_key=ROBOT_STATE_WEB_QUEUE,
+            body=json.dumps(command)
+        )
 
         # Handle Ctrl+c
         signal.signal(signal.SIGINT, signal_handler)

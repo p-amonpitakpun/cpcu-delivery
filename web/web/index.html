@@ -20,12 +20,33 @@
             height: 80px;
             border: 1px solid black;
         }
+
+        .rob {
+            position:absolute;
+            top:0px;
+            left:0px;
+            background-color: red;
+            width:12px;
+            height:12px;
+            z-index:9999;
+        }
+
+        .can {
+            position:relative;
+            width:600px;
+            height:600px;
+        }
     </style>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 </head>
 
 <body>
+    
     <h1 id="statustext">Status: </h1>
+    <div id="can" class="can">
+        <div class="rob" id="rob"></div>
+        <img id="occu"></img>
+    </div>
     <div class="con" id="con">
     </div>
 
@@ -65,45 +86,51 @@
             }
             var socket = io();
             socket.on(queue_robotState, function (msg) {
+                console.log(msg.occupancy_grid_position)
+                base64_image = `data:image/png;base64, ${msg.map}`
+                $("#occu").attr("src", base64_image);
+                $("#rob").css("left", `${msg.occupancy_grid_position[0]}px`)
+                $("#rob").css("top", `${msg.occupancy_grid_position[1]}px`)
+                //console.log(msg)
                 // clear
-                for (var i = 0; i < 9; i++) {
-                    for (var i2 = 0; i2 <9; i2++) {
-                        var now = $("#box" + i.toString() + i2.toString());
-                        now.css("background-color", "#ffffff");
-                    }
-                }
-                if(msg.type==0) {
-                    $("#statustext").text("Status: IDLE");
-                    var now = $("#box" + msg.current[0].toString() + msg.current[1].toString());
-                    now.css("background-color", "#000000");
-                }
-                else if(msg.type==1) {
-                    $("#statustext").text("Status: Planned moving");
-                    for(var i=0;i<msg.path.length;i++) {
-                        var now = $("#box" + msg.path[i][0].toString() + msg.path[i][1].toString());
-                        now.css("background-color", "#AAAAAA");
-                    }
-                    var now = $("#box" + msg.current[0].toString() + msg.current[1].toString());
-                    now.css("background-color", "#000000");
-                    var goal = $("#box" + msg.goal[0].toString() + msg.goal[1].toString());
-                    goal.css("background-color", "#00ff00");
-                }
-                else if(msg.type==2) {
-                    $("#statustext").text("Status: No Path Found");
-                    var now = $("#box" + msg.current[0].toString() + msg.current[1].toString());
-                    now.css("background-color", "#000000");
-                    var goal = $("#box" + msg.goal[0].toString() + msg.goal[1].toString());
-                    goal.css("background-color", "#00ff00");
-                }
-                else if(msg.type==3) {
-                    $("#statustext").text("Status: Robot ERROR");
-                    for (var i = 0; i < 9; i++) {
-                        for (var i2 = 0; i2 <9; i2++) {
-                            var now = $("#box" + i.toString() + i2.toString());
-                            now.css("background-color", "#aa0000");
-                        }
-                    }
-                }
+                // for (var i = 0; i < 9; i++) {
+                //     for (var i2 = 0; i2 <9; i2++) {
+                //         var now = $("#box" + i.toString() + i2.toString());
+                //         now.css("background-color", "#ffffff");
+                //     }
+                // }
+                // if(msg.type==0) {
+                //     $("#statustext").text("Status: IDLE");
+                //     var now = $("#box" + msg.current[0].toString() + msg.current[1].toString());
+                //     now.css("background-color", "#000000");
+                // }
+                // else if(msg.type==1) {
+                //     $("#statustext").text("Status: Planned moving");
+                //     for(var i=0;i<msg.path.length;i++) {
+                //         var now = $("#box" + msg.path[i][0].toString() + msg.path[i][1].toString());
+                //         now.css("background-color", "#AAAAAA");
+                //     }
+                //     var now = $("#box" + msg.current[0].toString() + msg.current[1].toString());
+                //     now.css("background-color", "#000000");
+                //     var goal = $("#box" + msg.goal[0].toString() + msg.goal[1].toString());
+                //     goal.css("background-color", "#00ff00");
+                // }
+                // else if(msg.type==2) {
+                //     $("#statustext").text("Status: No Path Found");
+                //     var now = $("#box" + msg.current[0].toString() + msg.current[1].toString());
+                //     now.css("background-color", "#000000");
+                //     var goal = $("#box" + msg.goal[0].toString() + msg.goal[1].toString());
+                //     goal.css("background-color", "#00ff00");
+                // }
+                // else if(msg.type==3) {
+                //     $("#statustext").text("Status: Robot ERROR");
+                //     for (var i = 0; i < 9; i++) {
+                //         for (var i2 = 0; i2 <9; i2++) {
+                //             var now = $("#box" + i.toString() + i2.toString());
+                //             now.css("background-color", "#aa0000");
+                //         }
+                //     }
+                // }
             });
             socket.on(queue_robotImage, function (msg) {
                 $("#camera").attr("src", msg);
