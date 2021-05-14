@@ -1,5 +1,0 @@
-string req
----
-sensor_msgs/Image image
-int32[] occupancy_grid_position
-float32[] real_position
