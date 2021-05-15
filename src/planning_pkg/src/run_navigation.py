@@ -99,7 +99,6 @@ class Node:
             response['target'] = self.goal
             response['path'] = self.planner.get_path()
             response['status'] = 'ok'
-        print(response)
         return dumps(response)
 
 
@@ -111,22 +110,19 @@ class Node:
             self.planner.plan()
             self.position.update_plan(self.planner.planned)
             planned_position = self.position.get_position(self.planner.current_position[0], self.planner.current_position[1])
-        if self.position.at_goal((self.planner.current_position[0], self.planner.current_position[1])):
+        if self.position.at_goal((planned_position[0], planned_position[1])):
             self.status = IDLE
             return
-        try:
-            self.publisher.publish(Float32MultiArray(data=self.navigator.get_motor_speed(
-                self.planner.current_position, planned_position, time())))
-        except:
-            self.operate()
+        self.publisher.publish(Float32MultiArray(data=self.navigator.get_motor_speed(
+            self.planner.current_position, planned_position, time())))
 
     def publish(self):
         while not is_shutdown():
             if self.status == IDLE or self.status == PAUSED:
                 self.publisher.publish(Float32MultiArray(data=[0, 0]))
             elif self.status == WALKING:
-                # if not validate_planned(self.planner.planned, self.planner.map):
-                #     self.planner.plan()
+                if not validate_planned(self.planner.planned, self.planner.map):
+                    self.planner.plan()
                 self.operate()
             self.rate.sleep()
 

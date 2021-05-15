@@ -46,6 +46,7 @@ class ParticleFilter():
         self.scores = np.array([1] * self.M) / self.M
 
     def update(self, transform, laser_scanner_data):
+        print(transform)
         now = datetime.now()
         dt_s = (
             now - self.last_update).total_seconds() if self.last_update is not None else 0

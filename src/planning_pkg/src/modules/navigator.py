@@ -1,6 +1,6 @@
 from math import acos, radians, sin
 
-ROBOT_DIMENSION = 0.08
+ROBOT_DIMENSION = 0.2
 DEFAULT_SPEED = 5
 TRUCK_LENGHT = 0.001
 TURN_CONSTANT = 2.5
