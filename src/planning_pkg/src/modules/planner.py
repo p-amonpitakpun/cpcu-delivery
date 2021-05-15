@@ -82,7 +82,7 @@ class Planner:
                 self.planned.appendleft(current_position)
                 return True
             for _x, _y, _direction in get_posible_path(x, y, direction):
-                if _x >= 0 and _y >= 0 and _x <= len(self.map[0]) - 1 and _y <= len(self.map) - 1 and sum(self.map[y][x]) <999 and (_x, _y, _direction) not in backtracker:
+                if _x >= 0 and _y >= 0 and _x <= len(self.map[0]) - 1 and _y <= len(self.map) - 1 and not sum(self.map[y][x]) and (_x, _y, _direction) not in backtracker:
                     backtracker[(_x, _y, _direction)] = (x, y, direction)
                     queue.append((_x, _y, _direction))
 
