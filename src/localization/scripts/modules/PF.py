@@ -76,7 +76,7 @@ class ParticleFilter():
         now = datetime.now()
         dt_s = (
             now - self.last_update).total_seconds() if self.last_update is not None else 0
-        return self.particle + self.particle_velocity * dt_s
+        return self.particle # + self.particle_velocity * dt_s
 
     def getCell(self):
         return self.cvtSim2Grid(self.particle)
