@@ -103,14 +103,14 @@ class ParticleFilter():
                 [-0.5, -0.5]), high=np.array([0.5, 0.5]), size=(self.N, 2))
             new_samples = []
             for s in samples:
-                new_samples.append([s[0], s[1], 0])
-                new_samples.append([s[0], s[1], np.pi / 2])
+                # new_samples.append([s[0], s[1], 0])
+                # new_samples.append([s[0], s[1], np.pi / 2])
                 new_samples.append([s[0], s[1], np.pi])
                 new_samples.append([s[0], s[1], np.pi * 3 / 2])
                 new_samples.append([s[0], s[1], np.pi / 4])
-                new_samples.append([s[0], s[1], np.pi * 3 / 4])
-                new_samples.append([s[0], s[1], np.pi * 5 / 4])
-                new_samples.append([s[0], s[1], np.pi * 7 / 4])
+                # new_samples.append([s[0], s[1], np.pi * 3 / 4])
+                # new_samples.append([s[0], s[1], np.pi * 5 / 4])
+                # new_samples.append([s[0], s[1], np.pi * 7 / 4])
             return np.array(new_samples)
 
         if len(self.scores) != len(self.particles):
@@ -127,7 +127,7 @@ class ParticleFilter():
                 f'Error: the shape of transformation {transform.shape} is not the same as the shape of particle {particles.shape}.')
 
         # cov_matrix = np.array([[1, 0, 1], [0, 1, 1], [1, 1, 1]]) * 1e-6
-        transform_err = np.array([1e-3, 1e-3, 0.01])
+        transform_err = np.array([5e-3, 5e-3, 0.5 * np.pi / 180])
 
         predicted_particles = particles + np.random.uniform(low=transform - transform_err,
                                                             high=transform + transform_err,
@@ -143,6 +143,9 @@ class ParticleFilter():
         return [int(sim_pose[0] // reso + x_offset), int(- sim_pose[1] // reso + y_offset)]
 
     def get_scores(self, particles, laser_scanner_data):
+
+        treshold = 0.6
+
         scores_length = len(particles)
         scores = [0] * scores_length
 
@@ -170,7 +173,7 @@ class ParticleFilter():
                 point = self.cvtSim2Grid(p)
                 if 0 <= point[0] < x_shape and 0 <= point[1] < y_shape:
                     grid_score = self.occGrid.getProbabilty(*point)
-                    score += grid_score
+                    score += grid_score if grid_score > treshold else 0
                 scan.append(point)
 
             if self.occGrid.getOccupy(*point_cell) == 0:
@@ -183,7 +186,7 @@ class ParticleFilter():
 
         max_score = np.max(norm_scores)
         particle_list = list(zip(particle_cells, particle_scans, norm_scores))
-        img = self.occGrid.getImage(-50, 50)
+        img = self.occGrid.getImage2(treshold)
         for pose, scan, score in particle_list:
             if score == max_score:
                 pass
