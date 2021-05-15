@@ -97,7 +97,7 @@ class Node:
             self.planner.update_map(map_wrapper(commands['map']))
             response['state'] = self.status
             response['target'] = self.goal
-            response['path'] = list(self.planner.planned)
+            response['path'] = self.planner.get_path()
             response['status'] = 'ok'
         print(response)
         return dumps(response)

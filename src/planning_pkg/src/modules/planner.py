@@ -88,6 +88,11 @@ class Planner:
 
         self.planned = deque()
         return False
+    
+    def get_path(self):
+        if self.planned:
+            return list(self.planned)
+        return [self.current_position]
 
     def clear(self):
         print('Planner : Clearing data...')
