@@ -73,9 +73,9 @@ class ParticleFilter():
             self.particle_hist.append(self.particle.copy())
 
     def getPose(self):
-        now = datetime.now()
-        dt_s = (
-            now - self.last_update).total_seconds() if self.last_update is not None else 0
+        # now = datetime.now()
+        # dt_s = (
+        #     now - self.last_update).total_seconds() if self.last_update is not None else 0
         return self.particle # + self.particle_velocity * dt_s
 
     def getCell(self):
