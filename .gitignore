@@ -61,3 +61,5 @@ images/
 *.env
 node_modules
 mongodb_data
+
+!web/web/build
