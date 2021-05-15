@@ -114,8 +114,11 @@ class Node:
         if self.position.at_goal((self.planner.current_position[0], self.planner.current_position[1])):
             self.status = IDLE
             return
-        self.publisher.publish(Float32MultiArray(data=self.navigator.get_motor_speed(
-            self.planner.current_position, planned_position, time())))
+        try:
+            self.publisher.publish(Float32MultiArray(data=self.navigator.get_motor_speed(
+                self.planner.current_position, planned_position, time())))
+        except:
+            self.operate()
 
     def publish(self):
         while not is_shutdown():
