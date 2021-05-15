@@ -36,7 +36,7 @@ def main():
             i = int(ans2)
 
             if i < len(logs):
-                
+
                 real = input('real ? (y / n): ').strip() == 'y'
                 optimized = input('optimized ? (y / n): ').strip() == 'y'
 
@@ -45,7 +45,7 @@ def main():
                     log = json.load(fp)
                 graph_name = 'map_{}'.format(str(log['starttime']))
                 graph, grid, g = compute(
-                    log, slam_type='real' if real else 'icp', optimized=optimized, name=graph_name, run_graph=True, size=500, real=real)
+                    log, slam_type='real' if real else 'icp', optimized=optimized, name=graph_name, run_graph=True, size=500)
             u_vertices = [v.point for v in graph.getVertices()]
             p = np.array(u_vertices).T
 
@@ -53,15 +53,6 @@ def main():
             ax.set_aspect(1)
             ax.scatter(p[0, :], p[1, :], s=5, c='c', label=graph_name)
 
-            # o_vertices = [v.point for v in graph_optimized.getVertices()]
-            # q = list(zip(*o_vertices))
-            # plt.scatter(q[0], q[1], s=1, c='m', label='optimized')
-
-            # try:
-            #     r = list(zip(*log['valid']))
-            #     plt.scatter(r[0], r[1], s=1, c='k', label='validation')
-            # except:
-            #     print('  Mapping: cannot show validation')
             plt.legend()
 
             if g is not None:

@@ -82,8 +82,7 @@ class LocalizationNode():
         self.pf.init(ref_map_path=saved_maps[map_idx],
                      ref_map_config_path=saved_config[config_idx])
 
-        # rate = rospy.Rate(10)
-        delay_ms = 50
+        delay_ms = 100
 
         self.odom_last_calculate = datetime.now()
         self.scan_last_calculate = datetime.now()
@@ -178,9 +177,7 @@ class LocalizationNode():
                 transform, new_scan, self.last_odom = self.process_data(
                     odom_data, scanner_data, self.last_odom)
                 self.pf.update(transform, new_scan)
-                # print('PF updated with \tT:', transform)
-                # print('loc', self.pf.getLoc())
-
+                
                 scan = np.zeros((500, 500, 3), dtype=np.uint8)
                 scale = 50
                 scan = cv2.circle(scan, (250, 250), 5, (100, 250, 50), -1)
