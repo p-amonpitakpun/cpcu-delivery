@@ -210,7 +210,8 @@ class LocalizationNode():
 
                     # Publish
                     try:
-                        pose_msg = Float32MultiArray(data=self.pf.getPose())
+                        pose_data = np.concatenate([pose, cell])
+                        pose_msg = Float32MultiArray(data=pose_data)
                         self.pose_pub.publish(pose_msg)
                     except CvBridgeError as e:
                         rospy.logerr(e)
