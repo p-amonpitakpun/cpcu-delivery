@@ -43,7 +43,7 @@ def validate_planned(planned, map):
     if not planned:
         return False
     for (x, y, direction) in planned:
-        if map[y][x]:
+        if not sum(map[y][x]):
             return False
     return True
 
@@ -67,6 +67,7 @@ class Node:
             PUBLISH_TO, Float32MultiArray, queue_size=10)
         self.rate = Rate(10)
         self.goal = None
+        self.calculating = False
 
     def callback(self, request):
         commands = loads(request.req)
@@ -75,6 +76,10 @@ class Node:
             self.planner.update_goal((point_wrapper(
                 commands['goal'][0]), point_wrapper(commands['goal'][1])))
             self.goal = commands['goal']
+            self.calculating = True
+            self.planner.plan()
+            self.position.update_plan(self.planner.planned)
+            self.calculating = False
             response['status'] = 'ok'
         elif commands['type'] == MOVE:
             if commands['status'] == COMMAND_PAUSE:
@@ -89,17 +94,14 @@ class Node:
                 self.status = IDLE
                 response['status'] = 'ok'
         elif commands['type'] == SET_MAP:
-
             self.planner.update_position((point_wrapper(commands['occupancy_grid_position'][0]), 
             point_wrapper(commands['occupancy_grid_position'][1]), 
             commands['real_position'][2]))
-
             self.planner.update_map(map_wrapper(commands['map']))
             response['state'] = self.status
             response['target'] = self.goal
             response['path'] = self.planner.get_path()
             response['status'] = 'ok'
-        print(response)
         return dumps(response)
 
 
@@ -111,22 +113,24 @@ class Node:
             self.planner.plan()
             self.position.update_plan(self.planner.planned)
             planned_position = self.position.get_position(self.planner.current_position[0], self.planner.current_position[1])
-        if self.position.at_goal((self.planner.current_position[0], self.planner.current_position[1])):
+        if self.position.at_goal((planned_position[0], planned_position[1])):
             self.status = IDLE
+            self.publisher.publish(Float32MultiArray(data=[0, 0]))
             return
-        try:
-            self.publisher.publish(Float32MultiArray(data=self.navigator.get_motor_speed(
-                self.planner.current_position, planned_position, time())))
-        except:
-            self.operate()
+        if self.calculating:
+            self.publisher.publish(Float32MultiArray(data=[0, 0]))
+            return
+        self.publisher.publish(Float32MultiArray(data=self.navigator.get_motor_speed(
+            self.planner.current_position, planned_position, time())))
 
     def publish(self):
         while not is_shutdown():
             if self.status == IDLE or self.status == PAUSED:
                 self.publisher.publish(Float32MultiArray(data=[0, 0]))
             elif self.status == WALKING:
-                # if not validate_planned(self.planner.planned, self.planner.map):
-                #     self.planner.plan()
+                if not validate_planned(self.planner.planned, self.planner.map):
+                    self.planner.plan()
+                    self.position.update_plan(self.planner.planned)
                 self.operate()
             self.rate.sleep()
 

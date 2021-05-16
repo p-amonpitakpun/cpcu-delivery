@@ -58,6 +58,7 @@ class ParticleFilter():
         self.init_pose_error = [0.1, 0.1, np.pi / 4]
 
     def update(self, transform, laser_scanner_data):
+        print(transform)
         now = datetime.now()
         dt_s = (
             now - self.last_update).total_seconds() if self.last_update is not None else 0
