@@ -144,7 +144,7 @@ class LocalizationNode():
         dl = odom_data[3]
         dr = odom_data[4]
 
-        c = 2.55 * 25 # temp
+        c = 2.5
         v_ = c * (dl + dr) / 2
 
         transform = [0, 0, 0]
@@ -179,20 +179,6 @@ class LocalizationNode():
                 transform, new_scan, self.last_odom = self.process_data(
                     odom_data, scanner_data, self.last_odom)
                 self.pf.update(transform, new_scan)
-
-                scan = np.zeros((500, 500, 3), dtype=np.uint8)
-                scale = 50
-                scan = cv2.circle(scan, (250, 250), 5, (100, 250, 50), -1)
-                for p in self.scanner_buffer:
-                    scan = cv2.circle(
-                        scan, (int(250 - p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
-
-                cv2.imshow('scan', scan)
-                name, img = self.pf.getImage()
-                if img is not None:
-                    cv2.imshow(name, img)
-                cv2.waitKey(1)
-
                 self.last_update = datetime.now()
 
                 if self.pf_initialized is None:
@@ -204,6 +190,19 @@ class LocalizationNode():
                         cv2.destroyAllWindows()
                         self.pf_initialized = True
                         print('pf initialized !')
+
+                    scan = np.zeros((500, 500, 3), dtype=np.uint8)
+                    scale = 50
+                    scan = cv2.circle(scan, (250, 250), 5, (100, 250, 50), -1)
+                    for p in self.scanner_buffer:
+                        scan = cv2.circle(
+                            scan, (int(250 - p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
+
+                    cv2.imshow('scan', scan)
+                    name, img = self.pf.getImage()
+                    if img is not None:
+                        cv2.imshow(name, img)
+                    cv2.waitKey(1)
 
                     pose = self.pf.getPose()
                     cell = self.pf.getCell()
