@@ -144,7 +144,7 @@ class LocalizationNode():
         dl = odom_data[3]
         dr = odom_data[4]
 
-        c = 2.5
+        c = 2.5 * 25
         v_ = c * (dl + dr) / 2
 
         transform = [0, 0, 0]
