@@ -90,7 +90,7 @@ class LocalizationNode():
         self.scan_last_calculate = datetime.now()
 
         self.timer = rospy.Timer(rospy.Duration(secs=0, nsecs=delay_ms * 1000),
-                                 self.timer_callbak)
+                                 self.timer_callback)
 
     def odom_callback(self, msg):
         odom_msg = list(msg.data)
@@ -158,7 +158,7 @@ class LocalizationNode():
 
         return np.array(transform), new_scan, odom_data.copy()
 
-    def timer_callbak(self, timer):
+    def timer_callback(self, timer):
         try:
             now = datetime.now()
             if self.odom_last_update > self.odom_last_calculate and \
