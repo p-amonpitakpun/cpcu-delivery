@@ -13,6 +13,8 @@ np.random.seed(RNG_SEED)
 
 class ParticleFilter():
     def __init__(self, N=200):
+        self.state = 0
+
         self.rng = np.random.default_rng(RNG_SEED)
         self.last_update = None
         self.N = N
@@ -45,6 +47,16 @@ class ParticleFilter():
         self.particles = None
         self.scores = np.array([1] * self.M) / self.M
 
+        self.obs_grid = OccupancyGrid(
+            shape=self.ref_map.shape,
+            resolution=self.ref_map_config['resolution'],
+            logOdd_occ=self.ref_map_config['logOdd_occ'],
+            logOdd_free=self.ref_map_config['logOdd_free'])
+        self.obs_grid.grid = np.zeros(self.ref_map.shape)
+
+        self.init_pose = [0, 0, np.pi * 3 / 2]
+        self.init_pose_error = [0.1, 0.1, np.pi / 4]
+
     def update(self, transform, laser_scanner_data):
         now = datetime.now()
         dt_s = (
@@ -70,13 +82,15 @@ class ParticleFilter():
         if self.M / self.N > 1:
             self.M = int(self.M - 100)
         else:
+            self.state = 1
             self.particle_hist.append(self.particle.copy())
+            self.updateObsGrid(laser_scanner_data)
+
+    def getState(self):
+        return self.state
 
     def getPose(self):
-        # now = datetime.now()
-        # dt_s = (
-        #     now - self.last_update).total_seconds() if self.last_update is not None else 0
-        return self.particle # + self.particle_velocity * dt_s
+        return self.particle
 
     def getCell(self):
         return self.cvtSim2Grid(self.particle)
@@ -99,18 +113,15 @@ class ParticleFilter():
     def sample(self):
 
         if self.particles is None:
+            x, y, z = self.init_pose
+            dx, dy, dz = self.init_pose_error
+
             samples = np.random.uniform(low=np.array(
-                [-0.5, -0.5]), high=np.array([0.5, 0.5]), size=(self.N, 2))
+                [x - dx, y - dy]), high=np.array([x + dx, y + dy]), size=(self.N, 2))
             new_samples = []
             for s in samples:
-                # new_samples.append([s[0], s[1], 0])
-                # new_samples.append([s[0], s[1], np.pi / 2])
-                new_samples.append([s[0], s[1], np.pi])
-                new_samples.append([s[0], s[1], np.pi * 3 / 2])
-                new_samples.append([s[0], s[1], np.pi / 4])
-                # new_samples.append([s[0], s[1], np.pi * 3 / 4])
-                # new_samples.append([s[0], s[1], np.pi * 5 / 4])
-                # new_samples.append([s[0], s[1], np.pi * 7 / 4])
+                for X in np.random.uniform(low=np.array([s[0], s[1], z - dz]), high=np.array([s[0], s[1], z + dz]), size=(8, 3)):
+                    new_samples.append(X)
             return np.array(new_samples)
 
         if len(self.scores) != len(self.particles):
@@ -126,8 +137,7 @@ class ParticleFilter():
             raise Exception(
                 f'Error: the shape of transformation {transform.shape} is not the same as the shape of particle {particles.shape}.')
 
-        # cov_matrix = np.array([[1, 0, 1], [0, 1, 1], [1, 1, 1]]) * 1e-6
-        transform_err = np.array([5e-3, 5e-3, 0.5 * np.pi / 180])
+        transform_err = np.array([5e-3, 5e-3, 0.75 * np.pi / 180])
 
         predicted_particles = particles + np.random.uniform(low=transform - transform_err,
                                                             high=transform + transform_err,
@@ -192,18 +202,17 @@ class ParticleFilter():
                 pass
             else:
                 img = cv2.circle(img, tuple(pose), 2, (0, 255, 0), -1)
-                # for point in scan:
-                #     img = cv2.circle(img, tuple(point), 1, (70, 70, 105), -1)
+                for point in scan:
+                    img = cv2.circle(img, tuple(point), 1, (70, 70, 105), -1)
 
         idx = np.argmax(norm_scores)
-        img = cv2.circle(img, tuple(
-            particle_list[idx][0]), 5, (255, 50, 0), -1)
-        for point in particle_list[idx][1]:
-            img = cv2.circle(img, tuple(point), 2, (0, 0, 255), -1)
-
         for point in self.particle_hist:
             img = cv2.circle(img, tuple(
-                self.cvtSim2Grid(point)), 2, (255, 0, 0), -1)
+                self.cvtSim2Grid(point)), 2, (255, 255, 0), -1)
+        img = cv2.circle(img, tuple(
+            particle_list[idx][0]), 2, (255, 50, 0), -1)
+        for point in particle_list[idx][1]:
+            img = cv2.circle(img, tuple(point), 2, (0, 0, 255), -1)
 
         self.images['particles'] = img
 
@@ -224,3 +233,33 @@ class ParticleFilter():
             p = p.reshape((2,))
             self.occGrid.updateOccupy(
                 (X[0] + offset, - X[1] + offset), (p[0] + offset, - p[1] + offset))
+
+    def updateObsGrid(self, laser_scanner_data):
+        treshold = 0.6
+
+        y_shape, x_shape = self.occGrid.getShape()
+        reso = self.occGrid.resolution
+        offset_x, offset_y = reso * x_shape / 2, reso * y_shape / 2
+
+        X = self.particle
+
+        dx = self.particle
+        psi = dx[2]
+        R = np.array([[np.cos(psi), - np.sin(psi)],
+                      [np.sin(psi), np.cos(psi)]])
+        T = dx[0: 2].reshape((2, 1))
+
+        for p in laser_scanner_data:
+            p = np.dot(p, R.T) + T.T
+            p = p.reshape((2,))
+            point = self.cvtSim2Grid(p)
+            if 0 <= point[0] < x_shape and 0 <= point[1] < y_shape:
+                grid_score = self.occGrid.getProbabilty(*point)
+
+                if grid_score < treshold and grid_score != 0.5:
+                    self.obs_grid.updateOccupy(
+                        (X[0] + offset_x, - X[1] + offset_y), (p[0] + offset_x, - p[1] + offset_y))
+
+        img = self.obs_grid.getImage2(treshold)
+        img = cv2.circle(img, tuple(self.cvtSim2Grid(X)), 2, (255, 50, 0), -1)
+        self.images['obs'] = img
