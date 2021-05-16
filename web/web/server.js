@@ -153,7 +153,7 @@ const request = {
       sampleRateHertz: sampleRateHertz,
       languageCode: languageCode,
       speechContexts: [{
-        phrases: ["pause delivery", "resume delivery", "stop delivery", "pick up object at room", "deliver object to room", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+        phrases: ["pause delivery", "resume delivery", "stop delivery", "deliver object to room", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
         boost: 10
       }]  
     },

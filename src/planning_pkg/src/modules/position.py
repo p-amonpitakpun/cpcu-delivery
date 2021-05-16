@@ -41,6 +41,7 @@ class Position:
             return self.last_position
         self.last_position = _fit
         self.error = min_len
+        print(x,y,_fit)
         return _fit
     
     def threshold_check(self, thres):

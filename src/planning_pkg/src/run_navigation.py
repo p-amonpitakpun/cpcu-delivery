@@ -3,9 +3,11 @@
 from rospy import Publisher, Rate, init_node, Service, is_shutdown
 from json import loads, dumps
 from time import time
-from math import radians
+from math import radians, degrees
+import numpy as np
 
 from robot_state.srv import Planning
+import rospy
 from std_msgs.msg import Float32MultiArray
 
 from modules.planner import Planner
@@ -57,6 +59,7 @@ class Node:
 
         init_node(NODE_NAME, anonymous=True)
         Service(SERVICE_NAME, Planning, self.callback)
+        rospy.Subscriber("pose", Float32MultiArray, self.pose_callback)
 
         self.planner = Planner()
         self.navigator = Navigator()
@@ -93,9 +96,10 @@ class Node:
                 self.status = IDLE
                 response['status'] = 'ok'
         elif commands['type'] == SET_MAP:
-            self.planner.update_position((commands['occupancy_grid_position'][0], 
-            commands['occupancy_grid_position'][1], 
-            commands['real_position'][2]))
+            # self.planner.update_position((commands['occupancy_grid_position'][0], 
+            #     commands['occupancy_grid_position'][1], 
+            #     commands['real_position'][2])
+            # )
             self.planner.update_map(commands['map'])
             response['state'] = self.status
             response['target'] = self.goal
@@ -109,18 +113,23 @@ class Node:
             self.publisher.publish(Float32MultiArray(data=[0, 0]))
             return
         planned_position = self.position.get_position(self.planner.current_position[0], self.planner.current_position[1])
-        if self.position.threshold_check(POSITION_ERROR_THRES):
-            self.publisher.publish(Float32MultiArray(data=[0, 0]))
-            print('Node : Hm... where am I?')
-            self.planner.plan()
-            self.position.update_plan(self.planner.planned)
-            planned_position = self.position.get_position(self.planner.current_position[0], self.planner.current_position[1])
+        # if self.position.threshold_check(POSITION_ERROR_THRES):
+        #     self.publisher.publish(Float32MultiArray(data=[0, 0]))
+        #     print('Node : Hm... where am I?')
+        #     self.planner.plan()
+        #     self.position.update_plan(self.planner.planned)
+        #     planned_position = self.position.get_position(self.planner.current_position[0], self.planner.current_position[1])
+        #     return
         if self.position.at_goal((planned_position[0], planned_position[1])):
             self.status = IDLE
             self.publisher.publish(Float32MultiArray(data=[0, 0]))
             return
         self.publisher.publish(Float32MultiArray(data=self.navigator.get_motor_speed(
             self.planner.current_position, planned_position, time())))
+    
+    def pose_callback(self, input):
+        new_pose = (input.data[3], input.data[4], (input.data[2] * 180 / np.pi + 360) % 360)
+        self.planner.update_position(new_pose)
 
     def publish(self):
         while not is_shutdown():

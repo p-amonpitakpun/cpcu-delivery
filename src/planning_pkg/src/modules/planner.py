@@ -3,7 +3,7 @@ from math import ceil, sqrt
 import numpy
 
 ANGLE = [-180, -135, -90, -45, 0, 45, 90, 135, 180]
-WALL_DISTANCE_THRES = 5
+WALL_DISTANCE_THRES = 10
 
 
 def get_angle_diff(angle1, angle2):

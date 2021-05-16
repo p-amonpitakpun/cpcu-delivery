@@ -1,10 +1,10 @@
 from math import acos, radians, sin
 
 ROBOT_DIMENSION = 0.2
-DEFAULT_SPEED = 5
-TRUCK_LENGHT = 0.001
+DEFAULT_SPEED = 3
+TRUCK_LENGHT = 0.01
 TURN_CONSTANT = 1.5
-TURN_TRESH = 5
+TURN_TRESH = 10
 
 
 def get_angle_diff(angle1, angle2):
