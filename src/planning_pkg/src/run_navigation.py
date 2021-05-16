@@ -11,7 +11,6 @@ from std_msgs.msg import Float32MultiArray
 from modules.planner import Planner
 from modules.navigator import Navigator
 from modules.position import Position
-from modules.wrapper import point_wrapper, map_wrapper
 
 # Response
 IDLE = 0
@@ -32,7 +31,7 @@ NODE_NAME = 'planning_runner'
 SERVICE_NAME = 'planning'
 PUBLISH_TO = 'robotControl'
 
-POSITION_ERROR_THRES = 1000
+POSITION_ERROR_THRES = 100
 
 
 class POSITION_ERROR_EXCEPTOON(Exception):
@@ -43,7 +42,7 @@ def validate_planned(planned, map):
     if not planned:
         return False
     for (x, y, direction) in planned:
-        if map[y][x]:
+        if not sum(map[y][x]):
             return False
     return True
 
@@ -67,14 +66,19 @@ class Node:
             PUBLISH_TO, Float32MultiArray, queue_size=10)
         self.rate = Rate(10)
         self.goal = None
+        self.calculating = False
 
     def callback(self, request):
         commands = loads(request.req)
         response = {'status': 'type error'}
         if commands['type'] == SET_GOAL:
-            self.planner.update_goal((point_wrapper(
-                commands['goal'][0]), point_wrapper(commands['goal'][1])))
+            self.planner.update_goal((
+                commands['goal'][0], commands['goal'][1]))
             self.goal = commands['goal']
+            self.calculating = True
+            self.planner.plan()
+            self.position.update_plan(self.planner.planned)
+            self.calculating = False
             response['status'] = 'ok'
         elif commands['type'] == MOVE:
             if commands['status'] == COMMAND_PAUSE:
@@ -89,12 +93,10 @@ class Node:
                 self.status = IDLE
                 response['status'] = 'ok'
         elif commands['type'] == SET_MAP:
-
-            self.planner.update_position((point_wrapper(commands['occupancy_grid_position'][0]), 
-            point_wrapper(commands['occupancy_grid_position'][1]), 
+            self.planner.update_position((commands['occupancy_grid_position'][0], 
+            commands['occupancy_grid_position'][1], 
             commands['real_position'][2]))
-
-            self.planner.update_map(map_wrapper(commands['map']))
+            self.planner.update_map(commands['map'])
             response['state'] = self.status
             response['target'] = self.goal
             response['path'] = self.planner.get_path()
@@ -103,6 +105,9 @@ class Node:
 
 
     def operate(self):
+        if self.calculating:
+            self.publisher.publish(Float32MultiArray(data=[0, 0]))
+            return
         planned_position = self.position.get_position(self.planner.current_position[0], self.planner.current_position[1])
         if self.position.threshold_check(POSITION_ERROR_THRES):
             self.publisher.publish(Float32MultiArray(data=[0, 0]))
@@ -112,6 +117,7 @@ class Node:
             planned_position = self.position.get_position(self.planner.current_position[0], self.planner.current_position[1])
         if self.position.at_goal((planned_position[0], planned_position[1])):
             self.status = IDLE
+            self.publisher.publish(Float32MultiArray(data=[0, 0]))
             return
         self.publisher.publish(Float32MultiArray(data=self.navigator.get_motor_speed(
             self.planner.current_position, planned_position, time())))
@@ -123,6 +129,7 @@ class Node:
             elif self.status == WALKING:
                 if not validate_planned(self.planner.planned, self.planner.map):
                     self.planner.plan()
+                    self.position.update_plan(self.planner.planned)
                 self.operate()
             self.rate.sleep()
 

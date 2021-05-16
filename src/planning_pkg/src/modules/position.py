@@ -50,7 +50,7 @@ class Position:
         if not plan:
             return
         self.planned = plan
-        self.goal = list(plan)[len(plan) - 1]
+        self.goal = list(plan)[len(plan) - 1][:2]
         line_data = []
         _x = set()
         _y = set()
