@@ -25,8 +25,11 @@ class OccupancyGrid:
         log_odd = self.getOccupy(x, y)
         return self.calcProbability(log_odd)
 
-    def getImage(self, min_treshold, max_treshold):
-        prob = self.calcProbability(self.grid.copy())
+    def getProbabilityMap(self):
+        return self.calcProbability(self.grid.copy())
+
+    def getImage(self):
+        prob = self.getProbabilityMap()
         grid = 255 - (prob * 255).astype(np.uint8)
         grid = cv2.cvtColor(grid, cv2.COLOR_GRAY2BGR)
         return grid
@@ -67,7 +70,7 @@ class OccupancyGrid:
         else:
             self.grid[y, x] = self.min_treshold
 
-    def updateOccupy(self, start_point, end_point):
+    def updateOccupy(self, start_point, end_point, with_endpoint=True):
         x0, y0 = start_point
         xf, yf = end_point
         x_int0 = int(x0 // self.resolution)
@@ -100,16 +103,17 @@ class OccupancyGrid:
                 ):
                     self.setFreeCell(x_int, y_int)
 
-        sign_x = 1 * (xf > x0) - 1 * (xf < x0)
-        sign_y = 1 * (yf > y0) - 1 * (yf < y0)
+        if with_endpoint:
+            sign_x = 1 * (xf > x0) - 1 * (xf < x0)
+            sign_y = 1 * (yf > y0) - 1 * (yf < y0)
 
-        for dxy in [0, 1, 2]:
+            for dxy in [0, 1, 2]:
 
-            x_int = x_intf + sign_x * dxy
-            y_int = y_intf + sign_y * dxy
+                x_int = x_intf + sign_x * dxy
+                y_int = y_intf + sign_y * dxy
 
-            if 0 <= x_int < self.grid.shape[0] and 0 <= y_int < self.grid.shape[1]:
-                self.setOccupiedCell(x_int, y_int)
+                if 0 <= x_int < self.grid.shape[0] and 0 <= y_int < self.grid.shape[1]:
+                    self.setOccupiedCell(x_int, y_int)
 
 
 if __name__ == "__main__":

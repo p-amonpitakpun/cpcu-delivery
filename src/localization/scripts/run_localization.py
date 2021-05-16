@@ -173,13 +173,11 @@ class LocalizationNode():
 
                 self.odom_last_calculate = now
                 self.scan_last_calculate = now
-                self.last_update = now
                 self.mutex.release()
 
                 transform, new_scan, self.last_odom = self.process_data(
                     odom_data, scanner_data, self.last_odom)
                 self.pf.update(transform, new_scan)
-                self.last_update = datetime.now()
 
                 if self.pf_initialized is None:
                     self.pf_initialized = False
@@ -207,21 +205,23 @@ class LocalizationNode():
                     pose = self.pf.getPose()
                     cell = self.pf.getCell()
                     print(
-                        f'\nloc: {pose[: -1]}, dir: {(pose[-1] * 180 / np.pi + 360) % 360}')
+                        f'\nloc: {pose[: -1]}, dir: {(pose[-1] * 180 / np.pi + 360) % 360}, dt: {(now - self.last_update).total_seconds() * 1000}')
                     print(f'cell: {cell}')
 
                     # Publish
                     try:
                         pose_msg = Float32MultiArray(data=self.pf.getPose())
                         self.pose_pub.publish(pose_msg)
-                    except self.cvBridgeError as e:
+                    except CvBridgeError as e:
                         rospy.logerr(e)
 
                     try:
                         map_msg = self.cvBridge.cv2_to_imgmsg(self.pf.getMap())
                         self.map_pub.publish(map_msg)
-                    except self.cvBridgeError as e:
+                    except CvBridgeError as e:
                         rospy.logerr(e)
+
+                self.last_update = datetime.now()
 
         except Exception as e:
             print('  ERROR: ', e)

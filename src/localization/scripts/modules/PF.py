@@ -50,15 +50,17 @@ class ParticleFilter():
         self.obs_grid = OccupancyGrid(
             shape=self.ref_map.shape,
             resolution=self.ref_map_config['resolution'],
-            logOdd_occ=self.ref_map_config['logOdd_occ'],
-            logOdd_free=self.ref_map_config['logOdd_free'])
+            logOdd_occ=50.0,
+            logOdd_free=50.0)
         self.obs_grid.grid = np.zeros(self.ref_map.shape)
 
         self.init_pose = [0, 0, np.pi * 3 / 2]
         self.init_pose_error = [0.1, 0.1, np.pi / 4]
 
+        self.treshold = 0.6
+        self.bias = 0.4
+
     def update(self, transform, laser_scanner_data):
-        print(transform)
         now = datetime.now()
         dt_s = (
             now - self.last_update).total_seconds() if self.last_update is not None else 0
@@ -97,7 +99,10 @@ class ParticleFilter():
         return self.cvtSim2Grid(self.particle)
 
     def getMap(self):
-        return self.occGrid.getImage2(0.5)
+        k = self.bias
+        grid = (k * self.occGrid.getProbabilityMap() + (1 - k) * self.obs_grid.getProbabilityMap()) > self.treshold
+        img = (255 - 255 * grid).astype(np.uint8)
+        return img
 
     def getImage(self):
         image_list = list(self.images.items())
@@ -138,7 +143,7 @@ class ParticleFilter():
             raise Exception(
                 f'Error: the shape of transformation {transform.shape} is not the same as the shape of particle {particles.shape}.')
 
-        transform_err = np.array([5e-3, 5e-3, 0.75 * np.pi / 180])
+        transform_err = np.array([2.5e-3, 2.5e-3, 0.75 * np.pi / 180])
 
         predicted_particles = particles + np.random.uniform(low=transform - transform_err,
                                                             high=transform + transform_err,
@@ -156,6 +161,7 @@ class ParticleFilter():
     def get_scores(self, particles, laser_scanner_data):
 
         treshold = 0.6
+        k = 0.5
 
         scores_length = len(particles)
         scores = [0] * scores_length
@@ -184,6 +190,7 @@ class ParticleFilter():
                 point = self.cvtSim2Grid(p)
                 if 0 <= point[0] < x_shape and 0 <= point[1] < y_shape:
                     grid_score = self.occGrid.getProbabilty(*point)
+                    # grid_score = k * self.occGrid.getProbabilty(*point) + (1 - k) * self.obs_grid.getProbabilty(*point)
                     score += grid_score if grid_score > treshold else 0
                 scan.append(point)
 
@@ -236,7 +243,7 @@ class ParticleFilter():
                 (X[0] + offset, - X[1] + offset), (p[0] + offset, - p[1] + offset))
 
     def updateObsGrid(self, laser_scanner_data):
-        treshold = 0.6
+        k = self.bias
 
         y_shape, x_shape = self.occGrid.getShape()
         reso = self.occGrid.resolution
@@ -254,13 +261,17 @@ class ParticleFilter():
             p = np.dot(p, R.T) + T.T
             p = p.reshape((2,))
             point = self.cvtSim2Grid(p)
+
             if 0 <= point[0] < x_shape and 0 <= point[1] < y_shape:
-                grid_score = self.occGrid.getProbabilty(*point)
+                self.obs_grid.updateOccupy(
+                    (X[0] + offset_x, - X[1] + offset_y), (p[0] + offset_x, - p[1] + offset_y))
 
-                if grid_score < treshold and grid_score != 0.5:
-                    self.obs_grid.updateOccupy(
-                        (X[0] + offset_x, - X[1] + offset_y), (p[0] + offset_x, - p[1] + offset_y))
-
-        img = self.obs_grid.getImage2(treshold)
+        img = self.obs_grid.getImage2(self.treshold)
         img = cv2.circle(img, tuple(self.cvtSim2Grid(X)), 2, (255, 50, 0), -1)
-        self.images['obs'] = img
+        # self.images['obs'] = img.copy()
+
+
+        img = (255 - 255 * ((k * self.occGrid.getProbabilityMap() + (1 - k) * self.obs_grid.getProbabilityMap()) > self.treshold)).astype(np.uint8)
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        img = cv2.circle(img, tuple(self.cvtSim2Grid(X)), 2, (255, 50, 0), -1)
+        self.images['blend'] = img.copy()
