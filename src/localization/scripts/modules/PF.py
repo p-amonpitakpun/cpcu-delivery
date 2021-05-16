@@ -102,6 +102,7 @@ class ParticleFilter():
         k = self.bias
         grid = (k * self.occGrid.getProbabilityMap() + (1 - k) * self.obs_grid.getProbabilityMap()) > self.treshold
         img = (255 - 255 * grid).astype(np.uint8)
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         return img
 
     def getImage(self):
