@@ -5,7 +5,7 @@ DEFAULT_SPEED = 3
 OMEGA = pi / 4
 
 ERRROR_THRES = 10
-DIRECTION_THRES = 1
+DIRECTION_THRES = 5
 
 def get_angle_diff(angle1, angle2):
     return (angle1 - angle2 + 180) % 360 - 180

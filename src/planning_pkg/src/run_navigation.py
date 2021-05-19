@@ -108,13 +108,13 @@ class Node:
         if self.calculating:
             self.publisher.publish(Float32MultiArray(data=[0, 0]))
             return
-        planned_position = self.position.get_position(self.planner.current_position)
+        planned_position = self.position.get_position(*self.planner.current_position)
         if self.position.threshold_check(POSITION_ERROR_THRES):
             self.publisher.publish(Float32MultiArray(data=[0, 0]))
             print('Node : Hm... where am I?')
             self.planner.plan()
             self.position.update_plan(self.planner.planned)
-            planned_position = self.position.get_position(self.planner.current_position)
+            planned_position = self.position.get_position(*self.planner.current_position)
             return
         if not planned_position:
             self.status = IDLE
