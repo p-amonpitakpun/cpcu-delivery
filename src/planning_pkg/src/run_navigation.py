@@ -96,10 +96,6 @@ class Node:
                 self.status = IDLE
                 response['status'] = 'ok'
         elif commands['type'] == SET_MAP:
-            # self.planner.update_position((commands['occupancy_grid_position'][0], 
-            #     commands['occupancy_grid_position'][1], 
-            #     commands['real_position'][2])
-            # )
             self.planner.update_map(commands['map'])
             response['state'] = self.status
             response['target'] = self.goal
@@ -112,15 +108,15 @@ class Node:
         if self.calculating:
             self.publisher.publish(Float32MultiArray(data=[0, 0]))
             return
-        planned_position = self.position.get_position(self.planner.current_position[0], self.planner.current_position[1])
-        # if self.position.threshold_check(POSITION_ERROR_THRES):
-        #     self.publisher.publish(Float32MultiArray(data=[0, 0]))
-        #     print('Node : Hm... where am I?')
-        #     self.planner.plan()
-        #     self.position.update_plan(self.planner.planned)
-        #     planned_position = self.position.get_position(self.planner.current_position[0], self.planner.current_position[1])
-        #     return
-        if self.position.at_goal((planned_position[0], planned_position[1])):
+        planned_position = self.position.get_position(self.planner.current_position)
+        if self.position.threshold_check(POSITION_ERROR_THRES):
+            self.publisher.publish(Float32MultiArray(data=[0, 0]))
+            print('Node : Hm... where am I?')
+            self.planner.plan()
+            self.position.update_plan(self.planner.planned)
+            planned_position = self.position.get_position(self.planner.current_position)
+            return
+        if not planned_position:
             self.status = IDLE
             self.publisher.publish(Float32MultiArray(data=[0, 0]))
             return
