@@ -1,0 +1,7 @@
+{
+  "resolution": 0.08,
+  "logOdd_occ": 1.2,
+  "logOdd_free": 0.3,
+  "min_treshold": -50,
+  "max_treshold": 50
+}

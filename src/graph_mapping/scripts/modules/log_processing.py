@@ -1,3 +1,4 @@
+from datetime import datetime
 import cv2
 import numpy as np
 
@@ -36,7 +37,7 @@ def process_data(slam, odom_data, scanner_data, last_odom):
     dl = odom_data[3]
     dr = odom_data[4]
 
-    c = 0.5
+    c = 2.425 * 25
     v_ = c * (dl + dr) / 2
 
     transform = [0, 0, 0]
@@ -44,8 +45,8 @@ def process_data(slam, odom_data, scanner_data, last_odom):
         theta = odom_data[2]
         dtheta = (theta - last_odom[2])
 
-        transform[0] = v_ * np.cos(theta)
-        transform[1] = v_ * np.sin(theta)
+        transform[0] = v_ * np.cos(theta) * 0.85
+        transform[1] = v_ * np.sin(theta) * 0.95
         transform[2] = dtheta
 
     slam.mapping(np.array(transform), new_scan)
@@ -135,6 +136,8 @@ def compute(log, slam_type='graph', optimized=True, name='', run_graph=True, siz
 
     print(f'computing {slam_type}SLAM...')
     slam = SLAM[slam_type](optimized=optimized)
+
+    slam.init_pose = np.array([0, 0, 4.622105688902131])
 
     if slam_type == 'real':
         first_pos = None

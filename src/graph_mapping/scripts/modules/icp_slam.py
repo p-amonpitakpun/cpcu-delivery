@@ -46,6 +46,7 @@ class ICPSLAM:
         self.adjacency_list = defaultdict(lambda: defaultdict(int))
 
         self.optimized = optimized
+        self.init_pose = np.zeros(POINT_SHAPE)
 
     def getVertices(self):
         return self.vertices
@@ -101,7 +102,7 @@ class ICPSLAM:
             edge = Edge(V - 1, V, transform=vj.point - vi.point)
             return vj, [edge]
         else:
-            vj = Vertex(np.zeros(POINT_SHAPE))
+            vj = Vertex(self.init_pose)
             return vj, []
 
     def next_point(self, point, transform):
@@ -143,20 +144,19 @@ class ICPSLAM:
             P_i = v_i.laser_scanner_data.copy()
             P_j = v_j.laser_scanner_data.copy()
 
-        
             R0 = np.array([[np.cos(dtheta), - np.sin(dtheta)],
                             [np.sin(dtheta), np.cos(dtheta)]])
-            T0 = np.array([[dx], [dy]])
+            T0 = np.array([dx, dy]).reshape((2, 1))
 
             Q = P_i @ R0 + T0.T
         
-            R, T = tr_icp(Q, P_j, N_iter=20)
+            R, T = tr_icp(Q, P_j, N_iter=25)
 
-            dtheta = np.arctan2(R[1, 0], R[0, 0])
+            dtheta = np.arctan2(R[0, 1], R[0, 0])
             dx = T[0]
             dy = T[1]
 
-            v_j.point += np.array([dx * 0.1, dy * 0.1, dtheta * 0.01])
+            v_j.point += np.array([dx, dy, dtheta])
 
     def getImage(self):
         return None
