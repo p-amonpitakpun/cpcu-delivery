@@ -22,7 +22,7 @@ def get_possible_position(position):
         if _closest_angle == 0:
             result += ((position[0] + 1, position[1], _closest_angle),)
         elif position[2] == 45:
-            result += ((position[0] + 1, position[1] + 1, _closest_angle),)
+            result += ((position[0] + 1, position[1] - 1, _closest_angle),)
         elif position[2] == 90:
             result += ((position[0], position[1] - 1, _closest_angle),)
         elif position[2] == 135:

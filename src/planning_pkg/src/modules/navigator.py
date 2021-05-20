@@ -1,10 +1,10 @@
 from math import pi
 
 ROBOT_DIMENSION = 0.2
-DEFAULT_SPEED = 3
+DEFAULT_SPEED = 5
 
 _OMEGA = 45
-OMEGA = _OMEGA * 0.25
+OMEGA = _OMEGA * 2.5 * pi/180
 
 ERRROR_THRES = 10
 DIRECTION_THRES = 15
@@ -20,6 +20,7 @@ class Navigator:
         self.lastest_speed = (None, None)
 
     def get_motor_speed(self, current_position, current_planned_position, timer):
+        print(current_position, current_planned_position)
         if not current_position or not current_planned_position:
             return (0, 0)
         if abs(get_angle_diff(current_position[2], current_planned_position[2])) >= DIRECTION_THRES and not self.turn_period:
