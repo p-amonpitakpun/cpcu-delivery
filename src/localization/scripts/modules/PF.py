@@ -100,17 +100,17 @@ class ParticleFilter():
         return self.state
 
     def getPose(self):
-        return self.particle
+        return self.particle.copy()
 
     def getCell(self):
-        return self.cvtSim2Grid(self.particle)
+        return self.cvtSim2Grid(self.particle.copy())
 
     def getMap(self):
         k = self.bias
         grid = (k * self.occGrid.getProbabilityMap() + (1 - k) * self.obs_grid.getProbabilityMap()) > self.treshold
         img = (255 - 255 * grid).astype(np.uint8)
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-        return img
+        return img.copy()
 
     def getImage(self):
         image_list = list(self.images.items())
