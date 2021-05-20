@@ -60,7 +60,7 @@ class ParticleFilter():
         self.treshold = 0.6
         self.bias = 0.4
 
-    def update(self, transform, laser_scanner_data):
+    def update(self, transform, laser_scanner_data, real_pose=None):
         now = datetime.now()
         dt_s = (
             now - self.last_update).total_seconds() if self.last_update is not None else 0
@@ -88,6 +88,9 @@ class ParticleFilter():
             self.state = 1
             self.particle_hist.append(self.particle.copy())
             self.updateObsGrid(laser_scanner_data)
+
+            if real_pose is not None:
+                self.validate(real_pose)
 
     def getState(self):
         return self.state
@@ -275,4 +278,18 @@ class ParticleFilter():
         img = (255 - 255 * ((k * self.occGrid.getProbabilityMap() + (1 - k) * self.obs_grid.getProbabilityMap()) > self.treshold)).astype(np.uint8)
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         img = cv2.circle(img, tuple(self.cvtSim2Grid(X)), 2, (255, 50, 0), -1)
-        self.images['blend'] = img.copy()
+        # self.images['blend'] = img.copy()
+
+    def validate(self, real_pose):
+        y_shape, x_shape = self.occGrid.getShape()
+
+        img = self.occGrid.getImage2(0.5)
+        img = cv2.circle(img, tuple(self.cvtSim2Grid(real_pose)), 2, (0, 0, 255), -1)
+        img = cv2.circle(img, tuple(self.cvtSim2Grid(self.particle)), 2, (255, 50, 0), -1)
+        img = cv2.putText(img, f'{self.particle[0]:0.06f}', (0, y_shape - 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
+        img = cv2.putText(img, f'{real_pose[0]:0.06f}', (120, y_shape - 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
+        img = cv2.putText(img, f'{self.particle[1]:0.06f}', (0, y_shape - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
+        img = cv2.putText(img, f'{real_pose[1]:0.06f}', (120, y_shape - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
+        img = cv2.putText(img, f'{self.particle[2]:0.06f}', (0, y_shape - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
+        img = cv2.putText(img, f'{real_pose[2]:0.06f}', (120, y_shape - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
+        self.images['validate'] = img.copy()
