@@ -83,6 +83,7 @@ class ParticleFilter():
 
         self.particle_velocity = dx / dt_s if dt_s > 0 else self.particle_velocity
         self.particle = self.lpf.calc(selected_particle)
+        self.particle[2] = np.fmod(self.particle[2], np.pi * 2)
         self.last_update = now
 
         if self.M / self.N > 1:

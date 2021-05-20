@@ -37,8 +37,8 @@ class LocalizationNode():
 
         # Publisher
         self.pose_pub = rospy.Publisher(
-            'pose', Float32MultiArray, queue_size=5)
-        self.map_pub = rospy.Publisher('map', Image, queue_size=5)
+            'pose', Float32MultiArray, queue_size=1)
+        self.map_pub = rospy.Publisher('map', Image, queue_size=1)
 
         # Services
         self.map_srv = rospy.Service(
