@@ -83,4 +83,4 @@ class Position:
         self.line.append(Line(line_data, (min(_x), max(_x) + 1), (min(_y), max(_y) + 1)))
 
     def at_goal(self, current_position):
-        return self.goal == current_position
+        return self.goal == current_position[:2]

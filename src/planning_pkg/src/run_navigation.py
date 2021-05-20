@@ -40,11 +40,11 @@ class POSITION_ERROR_EXCEPTOON(Exception):
     pass
 
 
-def validate_planned(planned, map):
+def validate_planned(planned, map, planned_position):
     if not planned:
         return False
     for (x, y, direction) in planned:
-        if not sum(map[y][x]):
+        if not sum(map[y][x]) and (planned_position[0] - x)**2 + (planned_position[1] - y)**2 < 16:
             return False
     return True
 
@@ -109,14 +109,18 @@ class Node:
             self.publisher.publish(Float32MultiArray(data=[0, 0]))
             return
         planned_position = self.position.get_position(*self.planner.current_position)
-        if self.position.threshold_check(POSITION_ERROR_THRES):
+        if self.position.threshold_check(POSITION_ERROR_THRES) or not planned_position:
             self.publisher.publish(Float32MultiArray(data=[0, 0]))
             print('Node : Hm... where am I?')
             self.planner.plan()
             self.position.update_plan(self.planner.planned)
             planned_position = self.position.get_position(*self.planner.current_position)
             return
-        if not planned_position:
+        if not validate_planned(self.planner.planned, self.planner.map, planned_position):
+            self.planner.plan()
+            self.position.update_plan(self.planner.planned) 
+            return  
+        if self.position.at_goal(planned_position):
             self.status = IDLE
             self.publisher.publish(Float32MultiArray(data=[0, 0]))
             return
@@ -132,9 +136,6 @@ class Node:
             if self.status == IDLE or self.status == PAUSED:
                 self.publisher.publish(Float32MultiArray(data=[0, 0]))
             elif self.status == WALKING:
-                if not validate_planned(self.planner.planned, self.planner.map):
-                    self.planner.plan()
-                    self.position.update_plan(self.planner.planned)
                 self.operate()
             self.rate.sleep()
 
