@@ -5,6 +5,7 @@ import numpy as np
 import os
 
 from datetime import datetime
+from ext.basic_units import radians
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 paths = glob.glob(dir_path + '/localization/logs/error/error_*.log.txt')
@@ -80,16 +81,23 @@ if len(paths) > 0:
         T.append((datetime.fromtimestamp(t) - start_time).total_seconds())
         X.append(x)
         Y.append(y)
-        Z.append(z)
+        z = np.fmod(z, np.pi * 2)
+        Z.append(z if z < np.pi else np.pi - z)
 
-    fig1, axs = plt.subplots(2, 1, sharex=True)
+    fig1, axs = plt.subplots(2, 1, sharex=True, figsize=(10, 20))
     fig1.suptitle(f'Localization Error of Test case {log_time}')
     axs[0].plot(T, X, c='b', label='dx')
     axs[0].plot(T, Y, c='r', label='dy')
-    axs[1].plot(T, Z, c='k', label='dTheta')
+    axs[1].plot(T, Z, c='k', label='dTheta', yunits=radians)
+
+    axs[1].set_ylim(- np.pi, np.pi)
+
     axs[0].set_ylabel('Position Error (m)')
     axs[1].set_ylabel('Orientation Error (rad)')
     axs[1].set_xlabel('Time (s)')
+
+    axs[0].legend(loc='upper left')
+    axs[1].legend(loc='upper left')
     
     fig1.savefig(dir_path + f'/../images/error_{timestamp}.png')
     plt.show()

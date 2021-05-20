@@ -81,6 +81,8 @@ class LocalizationNode():
             print(i, ':', x)
         config_idx = int(input('choose saved map config: ').strip())
 
+        self.is_logging = input('error logging (y / n): ').strip() == 'y'
+
         self.pf.init(ref_map_path=saved_maps[map_idx],
                      ref_map_config_path=saved_config[config_idx])
 
@@ -92,14 +94,15 @@ class LocalizationNode():
         self.start_time = datetime.now()
         timestamp = datetime.timestamp(self.start_time)
 
-        self.error_log_path = PACKAGE_PATH + f'/logs/error/error_{timestamp}.log.txt'
-        with open(self.error_log_path, 'w') as fp:
-            fp.write('# info\n')
-            fp.write(f'time: {timestamp}')
-            fp.write(f'map: {saved_maps[map_idx]}\n')
-            fp.write(f'config: {saved_config[config_idx]}\n')
-            fp.write('\n')
-            fp.write('# data\n')
+        if self.is_logging:
+            self.error_log_path = PACKAGE_PATH + f'/logs/error/error_{timestamp}.log.txt'
+            with open(self.error_log_path, 'w') as fp:
+                fp.write('# info\n')
+                fp.write(f'time: {timestamp}')
+                fp.write(f'map: {saved_maps[map_idx]}\n')
+                fp.write(f'config: {saved_config[config_idx]}\n')
+                fp.write('\n')
+                fp.write('# data\n')
 
         self.timer = rospy.Timer(rospy.Duration(secs=0, nsecs=delay_ms * 1000),
                                  self.timer_callback)
@@ -231,13 +234,14 @@ class LocalizationNode():
                     print(
                         f'err:\t {self.real_pose[0] - pose[0]:0.6f}\t {self.real_pose[1] - pose[1]:0.6f}\t dir_err:\t {(np.rad2deg(self.real_pose[2] - pose[2]) + 360) % 360:0.6f}')
                     
-                    with open(self.error_log_path, 'a') as fp:
-                        fp.write('{},\t {},\t {},\t {}\n'.format(
-                            datetime.timestamp(now),
-                            self.real_pose[0] - pose[0],
-                            self.real_pose[1] - pose[1],
-                            self.real_pose[2] - pose[2]
-                        ))
+                    if self.is_logging:
+                        with open(self.error_log_path, 'a') as fp:
+                            fp.write('{},\t {},\t {},\t {}\n'.format(
+                                datetime.timestamp(now),
+                                self.real_pose[0] - pose[0],
+                                self.real_pose[1] - pose[1],
+                                self.real_pose[2] - pose[2]
+                            ))
 
                     # Publish
                     try:
