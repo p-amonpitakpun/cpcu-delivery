@@ -31,9 +31,9 @@ class OccupancyGrid:
         grid = cv2.cvtColor(grid, cv2.COLOR_GRAY2BGR)
         return grid
 
-    def getImage2(self, treshold):
+    def getImage2(self, threshold):
         prob = self.calcProbability(self.grid.copy())
-        grid = (255 - (prob > treshold) * 255).astype(np.uint8)
+        grid = (255 - (prob > threshold) * 255).astype(np.uint8)
         grid = cv2.cvtColor(grid, cv2.COLOR_GRAY2BGR)
         return grid
 
