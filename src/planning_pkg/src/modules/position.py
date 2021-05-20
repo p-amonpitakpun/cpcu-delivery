@@ -34,7 +34,7 @@ class Position:
         self.lastest_position = None
         self.line = []
         self.goal = None
-        self.error = float('inf')
+        self.error = 0
 
     def get_position(self, x, y, direction):
         min_len = float('inf')
@@ -66,6 +66,8 @@ class Position:
     def update_plan(self, plan):
         if not plan:
             return
+        self.line = []
+        self.error = 0
         self.planned = plan
         self.goal = list(plan)[len(plan) - 1][:2]
         self.lastest_position = list(plan)[0]
