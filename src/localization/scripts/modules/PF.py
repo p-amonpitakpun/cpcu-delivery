@@ -58,7 +58,7 @@ class ParticleFilter():
         self.init_pose = init_pose
         self.init_pose_error = [0.1, 0.1, 5 * np.pi / 180]
 
-        self.treshold = 0.6
+        self.threshold = 0.6
         self.bias = 0.4
 
         self.lpf = LowPassFilter(1000)
@@ -107,7 +107,7 @@ class ParticleFilter():
 
     def getMap(self):
         k = self.bias
-        grid = (k * self.occGrid.getProbabilityMap() + (1 - k) * self.obs_grid.getProbabilityMap()) > self.treshold
+        grid = (k * self.occGrid.getProbabilityMap() + (1 - k) * self.obs_grid.getProbabilityMap()) > self.threshold
         img = (255 - 255 * grid).astype(np.uint8)
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         return img.copy()
@@ -168,7 +168,7 @@ class ParticleFilter():
 
     def get_scores(self, particles, laser_scanner_data):
 
-        treshold = 0.6
+        threshold = 0.6
         k = 0.5
 
         scores_length = len(particles)
@@ -199,7 +199,7 @@ class ParticleFilter():
                 if 0 <= point[0] < x_shape and 0 <= point[1] < y_shape:
                     grid_score = self.occGrid.getProbabilty(*point)
                     # grid_score = k * self.occGrid.getProbabilty(*point) + (1 - k) * self.obs_grid.getProbabilty(*point)
-                    score += grid_score if grid_score > treshold else 0
+                    score += grid_score if grid_score > threshold else 0
                 scan.append(point)
 
             if self.occGrid.getOccupy(*point_cell) == 0:
@@ -212,7 +212,7 @@ class ParticleFilter():
 
         max_score = np.max(norm_scores)
         particle_list = list(zip(particle_cells, particle_scans, norm_scores))
-        img = self.occGrid.getImage2(treshold)
+        img = self.occGrid.getImage2(threshold)
         show_ghost_particles = False
         if show_ghost_particles:
             for pose, scan, score in particle_list:
@@ -276,12 +276,12 @@ class ParticleFilter():
                 self.obs_grid.updateOccupy(
                     (X[0] + offset_x, - X[1] + offset_y), (p[0] + offset_x, - p[1] + offset_y))
 
-        img = self.obs_grid.getImage2(self.treshold)
+        img = self.obs_grid.getImage2(self.threshold)
         img = cv2.circle(img, tuple(self.cvtSim2Grid(X)), 2, (255, 50, 0), -1)
         # self.images['obs'] = img.copy()
 
 
-        img = (255 - 255 * ((k * self.occGrid.getProbabilityMap() + (1 - k) * self.obs_grid.getProbabilityMap()) > self.treshold)).astype(np.uint8)
+        img = (255 - 255 * ((k * self.occGrid.getProbabilityMap() + (1 - k) * self.obs_grid.getProbabilityMap()) > self.threshold)).astype(np.uint8)
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         img = cv2.circle(img, tuple(self.cvtSim2Grid(X)), 2, (255, 50, 0), -1)
         self.images['blend'] = img.copy()
@@ -299,3 +299,23 @@ class ParticleFilter():
         img = cv2.putText(img, f'{self.particle[2]:0.06f}', (0, y_shape - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
         img = cv2.putText(img, f'{real_pose[2]:0.06f}', (120, y_shape - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
         # self.images['validate'] = img.copy()
+
+        img = self.obs_grid.getImage2(self.threshold)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        _, t = cv2.threshold(img, 125, 100, cv2.THRESH_BINARY_INV)
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        contours, h = cv2.findContours(t, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+        for cnt in contours:
+            l = cv2.arcLength(cnt, True)
+            print(l)
+
+            if l < 100:
+                c = (0, 0, 255)
+                # cv2.drawContours(img, cnt, -1, c, 3)
+                
+                if len(cnt) > 5:
+                    e = cv2.fitEllipseAMS(cnt)
+                    img = cv2.ellipse(img, e, c, 3)
+
+        # self.images['cnt'] = img.copy()
