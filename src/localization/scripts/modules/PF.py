@@ -292,4 +292,4 @@ class ParticleFilter():
         img = cv2.putText(img, f'{real_pose[1]:0.06f}', (120, y_shape - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
         img = cv2.putText(img, f'{self.particle[2]:0.06f}', (0, y_shape - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
         img = cv2.putText(img, f'{real_pose[2]:0.06f}', (120, y_shape - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
-        self.images['validate'] = img.copy()
+        # self.images['validate'] = img.copy()

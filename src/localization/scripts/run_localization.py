@@ -98,7 +98,7 @@ class LocalizationNode():
             self.error_log_path = PACKAGE_PATH + f'/logs/error/error_{timestamp}.log.txt'
             with open(self.error_log_path, 'w') as fp:
                 fp.write('# info\n')
-                fp.write(f'time: {timestamp}')
+                fp.write(f'time: {timestamp}\n')
                 fp.write(f'map: {saved_maps[map_idx]}\n')
                 fp.write(f'config: {saved_config[config_idx]}\n')
                 fp.write('\n')
@@ -172,7 +172,7 @@ class LocalizationNode():
             dtheta = (theta - self.last_odom[2])
 
             transform[0] = v_ * np.cos(theta) * 0.9
-            transform[1] = v_ * np.sin(theta) * 0.9
+            transform[1] = v_ * np.sin(theta) * 0.95
             transform[2] = dtheta
 
         return np.array(transform), new_scan, odom_data.copy()
