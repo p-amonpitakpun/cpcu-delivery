@@ -33,7 +33,7 @@ NODE_NAME = 'planning_runner'
 SERVICE_NAME = 'planning'
 PUBLISH_TO = 'robotControl'
 
-POSITION_ERROR_THRES = 100
+POSITION_ERROR_THRES = 25
 
 
 class POSITION_ERROR_EXCEPTOON(Exception):
