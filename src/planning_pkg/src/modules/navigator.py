@@ -3,7 +3,7 @@ from math import pi
 ROBOT_DIMENSION = 0.2
 DEFAULT_SPEED = 3
 
-_OMEGA = pi / 4
+_OMEGA = 45
 OMEGA = _OMEGA * 0.25
 
 ERRROR_THRES = 10
