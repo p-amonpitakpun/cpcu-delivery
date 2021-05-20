@@ -44,7 +44,7 @@ def validate_planned(planned, map, planned_position):
     if not planned:
         return False
     for (x, y, direction) in planned:
-        if not sum(map[y][x]) and (planned_position[0] - x)**2 + (planned_position[1] - y)**2 < 16:
+        if not sum(map[y][x]) and (planned_position[0] - x)**2 + (planned_position[1] - y)**2 < 169:
             return False
     return True
 

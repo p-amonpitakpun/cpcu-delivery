@@ -40,3 +40,8 @@ class Navigator:
             self.turn_period = 0
             self.start_turn_time = 0
             return (DEFAULT_SPEED, DEFAULT_SPEED)
+    
+    def clear(self):
+        self.start_turn_time = 0
+        self.turn_period = 0
+        self.lastest_speed = (None, None)
