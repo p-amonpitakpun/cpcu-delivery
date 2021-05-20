@@ -23,7 +23,7 @@ class Navigator:
         if not current_position or not current_planned_position:
             return (0, 0)
         if abs(get_angle_diff(current_position[2], current_planned_position[2])) >= DIRECTION_THRES and not self.turn_period:
-            self.turn_period = abs(get_angle_diff(current_position[2], current_planned_position[2]))/_OMEGA * pi / 180
+            self.turn_period = abs(get_angle_diff(current_position[2], current_planned_position[2]))/_OMEGA
             self.start_turn_time = timer
         if timer < self.start_turn_time + self.turn_period:
             if get_angle_diff(current_planned_position[2], current_position[2]) < 0:
