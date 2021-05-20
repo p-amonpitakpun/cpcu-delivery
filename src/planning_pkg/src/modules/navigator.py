@@ -2,8 +2,9 @@ from math import pi
 
 ROBOT_DIMENSION = 0.2
 DEFAULT_SPEED = 3
-OMEGA = pi / 4
-_OMEGA = OMEGA * ROBOT_DIMENSION / 0.08 / pi * 180
+
+_OMEGA = pi / 4
+OMEGA = _OMEGA * 0.25
 
 ERRROR_THRES = 10
 DIRECTION_THRES = 15
@@ -26,11 +27,11 @@ class Navigator:
             self.start_turn_time = timer
         if timer < self.start_turn_time + self.turn_period:
             if get_angle_diff(current_planned_position[2], current_position[2]) < 0:
-                self.lastest_speed = (OMEGA*ROBOT_DIMENSION/2, - _OMEGA*ROBOT_DIMENSION/2)
-                return (OMEGA*ROBOT_DIMENSION/2, - _OMEGA*ROBOT_DIMENSION/2)
+                self.lastest_speed = (OMEGA*ROBOT_DIMENSION/2, - OMEGA*ROBOT_DIMENSION/2)
+                return (OMEGA*ROBOT_DIMENSION/2, - OMEGA*ROBOT_DIMENSION/2)
             elif get_angle_diff(current_planned_position[2], current_position[2]) > 0:
-                self.lastest_speed = (- OMEGA*ROBOT_DIMENSION/2, _OMEGA*ROBOT_DIMENSION/2)
-                return (- OMEGA*ROBOT_DIMENSION/2, _OMEGA*ROBOT_DIMENSION/2)
+                self.lastest_speed = (- OMEGA*ROBOT_DIMENSION/2, OMEGA*ROBOT_DIMENSION/2)
+                return (- OMEGA*ROBOT_DIMENSION/2, OMEGA*ROBOT_DIMENSION/2)
             else:
                 return self.lastest_speed
         else:
