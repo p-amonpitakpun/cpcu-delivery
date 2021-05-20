@@ -55,7 +55,6 @@ CATKIN_IGNORE
 *.code-workspace
 
 # project directories
-images/
 
 # docker
 *.env
