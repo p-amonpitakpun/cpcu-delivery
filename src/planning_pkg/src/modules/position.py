@@ -31,7 +31,7 @@ class Position:
 
     def __init__(self):
         self.planned = tuple
-        self.current_line_num = 0
+        self.lastest_position = None
         self.line = []
         self.goal = None
         self.error = float('inf')
@@ -49,12 +49,15 @@ class Position:
             elif err == min_len:
                 _fit.append((point, next_point))
         if not _fit:
-            return None
+            return self.lastest_position
         self.error = min_len
         if len(_fit) > 1:
             if abs(get_angle_diff(direction, _fit[0][0][2])) < abs(get_angle_diff(direction, _fit[1][0][2])):
+                self.lastest_position = _fit[1][0]
                 return _fit[1][0]
+            self.lastest_position = _fit[1][1]
             return _fit[1][1]
+        self.lastest_position = _fit[0][1]
         return _fit[0][1]
     
     def threshold_check(self, thres):
@@ -65,6 +68,7 @@ class Position:
             return
         self.planned = plan
         self.goal = list(plan)[len(plan) - 1][:2]
+        self.lastest_position = list(plan)[0]
         line_data = []
         _x = set()
         _y = set()
