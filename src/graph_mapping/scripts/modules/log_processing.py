@@ -21,7 +21,7 @@ def process_realdata(slam, realpos, scanner_data, first_pos):
     pos = [0, 0, 0]
     if first_pos is not None:
         pos[0] = realpos[0] - first_pos[0]
-        pos[1] = first_pos[1] - realpos[1]
+        pos[1] = realpos[1] - first_pos[1]
     else:
         first_pos = realpos
     pos[2] = realpos[2]

@@ -54,8 +54,8 @@ class ParticleFilter():
             logOdd_free=50.0)
         self.obs_grid.grid = np.zeros(self.ref_map.shape)
 
-        self.init_pose = [0, 0, np.pi * 3 / 2]
-        self.init_pose_error = [0.1, 0.1, np.pi / 4]
+        self.init_pose = init_pose
+        self.init_pose_error = [0.1, 0.1, 5 * np.pi / 180]
 
         self.treshold = 0.6
         self.bias = 0.4
@@ -147,7 +147,7 @@ class ParticleFilter():
             raise Exception(
                 f'Error: the shape of transformation {transform.shape} is not the same as the shape of particle {particles.shape}.')
 
-        transform_err = np.array([2.5e-3, 2.5e-3, 0.75 * np.pi / 180])
+        transform_err = np.array([5e-3, 5e-3, 0.01 * np.pi / 180])
 
         predicted_particles = particles + np.random.uniform(low=transform - transform_err,
                                                             high=transform + transform_err,
@@ -278,7 +278,7 @@ class ParticleFilter():
         img = (255 - 255 * ((k * self.occGrid.getProbabilityMap() + (1 - k) * self.obs_grid.getProbabilityMap()) > self.treshold)).astype(np.uint8)
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         img = cv2.circle(img, tuple(self.cvtSim2Grid(X)), 2, (255, 50, 0), -1)
-        # self.images['blend'] = img.copy()
+        self.images['blend'] = img.copy()
 
     def validate(self, real_pose):
         y_shape, x_shape = self.occGrid.getShape()

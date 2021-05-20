@@ -84,7 +84,7 @@ class LocalizationNode():
         self.is_logging = input('error logging (y / n): ').strip() == 'y'
 
         self.pf.init(ref_map_path=saved_maps[map_idx],
-                     ref_map_config_path=saved_config[config_idx])
+                     ref_map_config_path=saved_config[config_idx], init_pose=np.array([0, 0, self.odom_buffer[2]]))
 
         delay_ms = 100
 
@@ -163,7 +163,7 @@ class LocalizationNode():
         dl = odom_data[3]
         dr = odom_data[4]
 
-        c = 2.5 * 25
+        c = 2.45 * 25
         v_ = c * (dl + dr) / 2
 
         transform = [0, 0, 0]
@@ -171,8 +171,8 @@ class LocalizationNode():
             theta = odom_data[2]
             dtheta = (theta - self.last_odom[2])
 
-            transform[0] = v_ * np.cos(theta)
-            transform[1] = v_ * np.sin(theta)
+            transform[0] = v_ * np.cos(theta) * 0.9
+            transform[1] = v_ * np.sin(theta) * 0.9
             transform[2] = dtheta
 
         return np.array(transform), new_scan, odom_data.copy()
