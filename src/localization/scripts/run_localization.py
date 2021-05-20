@@ -89,6 +89,18 @@ class LocalizationNode():
         self.odom_last_calculate = datetime.now()
         self.scan_last_calculate = datetime.now()
 
+        self.start_time = datetime.now()
+        timestamp = datetime.timestamp(self.start_time)
+
+        self.error_log_path = PACKAGE_PATH + f'/logs/error/error_{timestamp}.log.txt'
+        with open(self.error_log_path, 'w') as fp:
+            fp.write('# info\n')
+            fp.write(f'time: {timestamp}')
+            fp.write(f'map: {saved_maps[map_idx]}\n')
+            fp.write(f'config: {saved_config[config_idx]}\n')
+            fp.write('\n')
+            fp.write('# data\n')
+
         self.timer = rospy.Timer(rospy.Duration(secs=0, nsecs=delay_ms * 1000),
                                  self.timer_callback)
 
@@ -109,11 +121,15 @@ class LocalizationNode():
         self.odom_last_update = now
 
         if self.real_pose_init:
-            self.real_pose = [odom_msg[-2] / 100 - self.real_pose_origin[0], odom_msg[-1] /
-                              100 - self.real_pose_origin[1], self.odom_buffer[2] - self.real_pose_origin[2]]
+            self.real_pose[0] = odom_msg[5] / 100 - self.real_pose_origin[0]
+            self.real_pose[1] = odom_msg[6] / 100 - self.real_pose_origin[1]
+            self.real_pose[2] = self.odom_buffer[2] - self.real_pose_origin[2]
         else:
-            self.real_pose_origin = [odom_msg[-2] / 100,
-                                     odom_msg[-1] / 100, self.odom_buffer[2]]
+            self.real_pose_origin = [
+                odom_msg[5] / 100,
+                odom_msg[6] / 100,
+                self.odom_buffer[2]
+            ]
             self.real_pose_init = True
 
         self.mutex.release()
@@ -177,7 +193,7 @@ class LocalizationNode():
 
                 transform, new_scan, self.last_odom = self.process_data(
                     odom_data, scanner_data, self.last_odom)
-                self.pf.update(transform, new_scan)
+                self.pf.update(transform, new_scan, real_pose=self.real_pose)
 
                 if self.pf_initialized is None:
                     self.pf_initialized = False
@@ -189,14 +205,14 @@ class LocalizationNode():
                         self.pf_initialized = True
                         print('pf initialized !')
 
-                    scan = np.zeros((500, 500, 3), dtype=np.uint8)
-                    scale = 50
-                    scan = cv2.circle(scan, (250, 250), 5, (100, 250, 50), -1)
-                    for p in self.scanner_buffer:
-                        scan = cv2.circle(
-                            scan, (int(250 - p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
+                    # scan = np.zeros((500, 500, 3), dtype=np.uint8)
+                    # scale = 50
+                    # scan = cv2.circle(scan, (250, 250), 5, (100, 250, 50), -1)
+                    # for p in self.scanner_buffer:
+                    #     scan = cv2.circle(
+                    #         scan, (int(250 - p[2] * scale), int(250 - p[1] * scale)), 2, (0, 125, 255))
+                    # cv2.imshow('scan', scan)
 
-                    cv2.imshow('scan', scan)
                     name, img = self.pf.getImage()
                     if img is not None:
                         cv2.imshow(name, img)
@@ -204,9 +220,24 @@ class LocalizationNode():
 
                     pose = self.pf.getPose()
                     cell = self.pf.getCell()
+
+                    print()
+                    # print(f'dt: {(now - self.last_update).total_seconds() * 1000}')
                     print(
-                        f'\nloc: {pose[: -1]}, dir: {(pose[-1] * 180 / np.pi + 360) % 360}, dt: {(now - self.last_update).total_seconds() * 1000}')
-                    print(f'cell: {cell}')
+                        f'loc:\t {pose[0]:0.06f},\t {pose[1]:0.06f}\t dir:\t {(np.rad2deg(pose[2]) + 360) % 360}')
+                    # print(f'cell: {cell}')
+                    print(
+                        f'real:\t {self.real_pose[0]:0.6f},\t {self.real_pose[1]:0.6f}\t dir:\t {(np.rad2deg(self.real_pose[2]) + 360) % 360}')
+                    print(
+                        f'err:\t {self.real_pose[0] - pose[0]:0.6f}\t {self.real_pose[1] - pose[1]:0.6f}\t dir_err:\t {(np.rad2deg(self.real_pose[2] - pose[2]) + 360) % 360:0.6f}')
+                    
+                    with open(self.error_log_path, 'a') as fp:
+                        fp.write('{},\t {},\t {},\t {}\n'.format(
+                            datetime.timestamp(now),
+                            self.real_pose[0] - pose[0],
+                            self.real_pose[1] - pose[1],
+                            self.real_pose[2] - pose[2]
+                        ))
 
                     # Publish
                     try:
