@@ -28,10 +28,10 @@ class Navigator:
         if timer < self.start_turn_time + self.turn_period:
             if get_angle_diff(current_planned_position[2], current_position[2]) < 0:
                 self.lastest_speed = (OMEGA*ROBOT_DIMENSION/2, - OMEGA*ROBOT_DIMENSION/2)
-                return (OMEGA*ROBOT_DIMENSION/2, - OMEGA*ROBOT_DIMENSION/2)
+                return (OMEGA, - OMEGA)
             elif get_angle_diff(current_planned_position[2], current_position[2]) > 0:
-                self.lastest_speed = (- OMEGA*ROBOT_DIMENSION/2, OMEGA*ROBOT_DIMENSION/2)
-                return (- OMEGA*ROBOT_DIMENSION/2, OMEGA*ROBOT_DIMENSION/2)
+                self.lastest_speed = (- OMEGA, OMEGA)
+                return (- OMEGA, OMEGA)
             else:
                 return self.lastest_speed
         else:
