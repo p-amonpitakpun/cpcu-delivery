@@ -209,13 +209,15 @@ class ParticleFilter():
         max_score = np.max(norm_scores)
         particle_list = list(zip(particle_cells, particle_scans, norm_scores))
         img = self.occGrid.getImage2(treshold)
-        for pose, scan, score in particle_list:
-            if score == max_score:
-                pass
-            else:
-                img = cv2.circle(img, tuple(pose), 2, (0, 255, 0), -1)
-                for point in scan:
-                    img = cv2.circle(img, tuple(point), 1, (70, 70, 105), -1)
+        show_ghost_particles = False
+        if show_ghost_particles:
+            for pose, scan, score in particle_list:
+                if score == max_score:
+                    pass
+                else:
+                    img = cv2.circle(img, tuple(pose), 2, (0, 255, 0), -1)
+                    for point in scan:
+                        img = cv2.circle(img, tuple(point), 1, (70, 70, 105), -1)
 
         idx = np.argmax(norm_scores)
         for point in self.particle_hist:
