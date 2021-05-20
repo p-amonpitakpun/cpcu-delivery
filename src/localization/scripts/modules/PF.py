@@ -5,6 +5,7 @@ import numpy as np
 from datetime import datetime
 
 from .occupancy_grid import OccupancyGrid
+from .LPF import LowPassFilter
 
 
 RNG_SEED = 0
@@ -60,6 +61,8 @@ class ParticleFilter():
         self.treshold = 0.6
         self.bias = 0.4
 
+        self.lpf = LowPassFilter(1000)
+
     def update(self, transform, laser_scanner_data, real_pose=None):
         now = datetime.now()
         dt_s = (
@@ -79,7 +82,7 @@ class ParticleFilter():
         # self.updateOcc(self.particle, laser_scanner_data)
 
         self.particle_velocity = dx / dt_s if dt_s > 0 else self.particle_velocity
-        self.particle = selected_particle
+        self.particle = self.lpf.calc(selected_particle)
         self.last_update = now
 
         if self.M / self.N > 1:

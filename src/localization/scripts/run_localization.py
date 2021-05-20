@@ -224,6 +224,8 @@ class LocalizationNode():
                     pose = self.pf.getPose()
                     cell = self.pf.getCell()
 
+                    dt = (np.rad2deg(self.real_pose[2] - pose[2]) + 360) % 360
+
                     print()
                     # print(f'dt: {(now - self.last_update).total_seconds() * 1000}')
                     print(
@@ -232,7 +234,7 @@ class LocalizationNode():
                     print(
                         f'real:\t {self.real_pose[0]:0.6f},\t {self.real_pose[1]:0.6f}\t dir:\t {(np.rad2deg(self.real_pose[2]) + 360) % 360}')
                     print(
-                        f'err:\t {self.real_pose[0] - pose[0]:0.6f}\t {self.real_pose[1] - pose[1]:0.6f}\t dir_err:\t {(np.rad2deg(self.real_pose[2] - pose[2]) + 360) % 360:0.6f}')
+                        f'err:\t {self.real_pose[0] - pose[0]:0.6f}\t {self.real_pose[1] - pose[1]:0.6f}\t dir_err:\t {dt if dt < 180 else dt - 360:0.6f}')
                     
                     if self.is_logging:
                         with open(self.error_log_path, 'a') as fp:
